@@ -94,5 +94,14 @@ class CalibrationOp @Inject()(sqlServer: SqlServer) extends CalibrationDB {
   override def getLatestMonitorRecordTimeAsync(monitor: String): Future[Option[time.Imports.DateTime]] =
     sqlServer.getLatestMonitorRecordTimeAsync(tabName, monitor, "startTime")
 
-  override def monitorCalibrationReport(monitors: Seq[String], start: Date, end: Date): Future[Seq[Calibration]] = ???
+  override def monitorCalibrationReport(monitors: Seq[String], start: Date, end: Date): Future[Seq[Calibration]] = Future {
+    implicit val session: DBSession = ReadOnlyAutoSession
+    val monitorInStatement = SQLSyntax.in(SQLSyntax.createUnsafely("monitor"), monitors)
+    sql"""
+       Select *
+       From calibration
+       Where startTime >= $start and endTime < $end and $monitorInStatement
+       Order by startTime
+       """.map(mapper).list().apply()
+  }
 }
