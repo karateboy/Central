@@ -67,6 +67,18 @@
         <template #cell(desc)="row">
           <b-form-input v-model="row.item.desc" @change="markDirty(row.item)" />
         </template>
+        <template #cell(lat)="row">
+          <b-form-input
+            v-model.number="row.item.lat"
+            @change="markDirty(row.item)"
+          />
+        </template>
+        <template #cell(lng)="row">
+          <b-form-input
+            v-model.number="row.item.lng"
+            @change="markDirty(row.item)"
+          />
+        </template>
         <template #cell(monitorTypes)="row">
           <v-select
             id="monitorType"
@@ -116,6 +128,14 @@ export default Vue.extend({
       {
         key: 'order',
         label: '順序',
+      },
+      {
+        key: 'lat',
+        label: '緯度',
+      },
+      {
+        key: 'lng',
+        label: '經度',
       },
       {
         key: 'monitorTypes',

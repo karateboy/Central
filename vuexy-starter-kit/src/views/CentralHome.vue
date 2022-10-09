@@ -26,7 +26,7 @@
             :zoom="13"
             map-type-id="hybrid"
             class="map_canvas"
-            :option="mapOption"
+            :options="mapOption"
           >
             <div v-if="mapLoaded">
               <GmapMarker
@@ -38,7 +38,7 @@
                 @click="toggleInfoWindow(aisData.monitor, 0)"
               />
               <GmapMarker
-                v-for="(ship, idx) in aisData.ships"
+                v-for="(ship, idx) in shipWithPosition(aisData)"
                 :key="idx + 1"
                 :position="ship.position"
                 :clickable="true"
@@ -63,7 +63,7 @@
 import Vue from 'vue';
 import { mapActions, mapGetters, mapState } from 'vuex';
 import axios from 'axios';
-import { MonitorType } from './types';
+import { MonitorType, MtRecord, RecordList, RecordListID } from './types';
 import highcharts from 'highcharts';
 import darkTheme from 'highcharts/themes/dark-unica';
 import useAppConfig from '../@core/app-config/useAppConfig';
@@ -99,6 +99,15 @@ interface LatestAisData {
   aisData: Array<ParsedAisData>;
 }
 
+interface DisplayRecordList extends RecordList {
+  recordMap?: Map<string, MtRecord>;
+}
+
+interface LatestMonitorData {
+  monitorTypes: Array<string>;
+  monitorData: Array<RecordList>;
+}
+
 export default Vue.extend({
   data() {
     let latestAisData: LatestAisData = {
@@ -119,6 +128,7 @@ export default Vue.extend({
       rotateControl: true,
       fullscreenControl: true,
     };
+    let recordLists = Array<DisplayRecordList>();
     return {
       refreshTimer: 0,
       mtInterestTimer: 0,
@@ -129,6 +139,7 @@ export default Vue.extend({
       mapLoaded,
       infoWinIndex,
       mapOption,
+      recordLists,
     };
   },
   computed: {
@@ -158,9 +169,12 @@ export default Vue.extend({
     const me = this;
     for (const mt of this.userInfo.monitorTypeOfInterest) this.query(mt);
 
+    await this.getMonitorRealtimeData();
     await this.getLatestAisData();
+
     this.mtInterestTimer = setInterval(() => {
       me.getLatestAisData();
+      me.getMonitorRealtimeData();
       for (const mt of me.userInfo.monitorTypeOfInterest) me.query(mt);
     }, 60000);
   },
@@ -172,12 +186,11 @@ export default Vue.extend({
     ...mapActions('monitorTypes', ['fetchMonitorTypes']),
     ...mapActions('monitors', ['fetchMonitors']),
     ...mapActions('user', ['getUserInfo']),
-    async refresh(): Promise<void> {},
     async query(mt: string) {
       const now = new Date().getTime();
       const oneHourBefore = now - 60 * 60 * 1000;
       const monitors = this.monitorOfNoEPA.map((m: Monitor) => m._id).join(':');
-      const url = `/HistoryTrend/${monitors}/${mt}/Min/all/${oneHourBefore}/${now}`;
+      const url = `/HistoryTrend/${monitors}/${mt}/Min/normal/${oneHourBefore}/${now}`;
       const res = await axios.get(url);
       const ret: highcharts.Options = res.data;
 
@@ -263,8 +276,7 @@ export default Vue.extend({
     },
     getMtName(mt: string): string {
       let mtInfo = this.mtMap.get(mt) as MonitorType;
-      if (mtInfo !== undefined) return mtInfo.desp;
-      else return '';
+      return mtInfo?.desp ?? '';
     },
     async getLatestAisData(): Promise<void> {
       try {
@@ -275,7 +287,7 @@ export default Vue.extend({
             for (let ship of data.ships) {
               let lat = Number.parseFloat(ship.LAT);
               let lng = Number.parseFloat(ship.LON);
-              ship.position = { lat, lng };
+              if (lat !== NaN && lng !== NaN) ship.position = { lat, lng };
             }
           }
         }
@@ -337,8 +349,44 @@ export default Vue.extend({
           this.infoWindowPos.set(monitor, masterPos);
           this.infoWindowPos = new Map(this.infoWindowPos);
 
+          let distance = '';
+          let monitorData = this.mMap.get(monitor);
+          let recordList = this.recordLists.find(
+            rec => rec._id.monitor === monitor,
+          );
+          {
+            let latRecord = recordList?.recordMap!.get('LAT');
+            let lngRecord = recordList?.recordMap!.get('LNG');
+            if (
+              monitorData === undefined ||
+              monitorData.lat === undefined ||
+              monitorData.lng === undefined ||
+              latRecord === undefined ||
+              latRecord.value === undefined ||
+              lngRecord === undefined ||
+              lngRecord.value === undefined
+            ) {
+              distance = '?';
+            } else {
+              let km = this.getDistanceFromLatLonInKm(
+                monitorData.lat,
+                monitorData.lng,
+                latRecord?.value,
+                lngRecord?.value,
+              );
+              distance = `${km?.toFixed(1)}`;
+            }
+          }
+
+          let content =
+            `<strong>${this.mMap.get(monitor).desc}</strong><br\>` +
+            `離港距離:${distance} km`;
+          if (recordList !== undefined)
+            for (let mt of this.userInfo.monitorTypeOfInterest) {
+              content += `<br/>${this.geMtRecordValue(recordList, mt)}`;
+            }
           this.infoWindoContent = new Map(
-            this.infoWindoContent.set(monitor, this.mMap.get(monitor).desc),
+            this.infoWindoContent.set(monitor, content),
           );
         } else {
           let ship = aisData.ships[idx - 1];
@@ -397,6 +445,60 @@ export default Vue.extend({
           height: -35,
         },
       };
+    },
+    shipWithPosition(aisData: ParsedAisData): Array<AisShip> {
+      return aisData.ships.filter(ship => ship.position);
+    },
+    async getMonitorRealtimeData() {
+      const ret = await axios.get('/LatestMonitorData');
+      let data = ret.data as LatestMonitorData;
+      this.recordLists = data.monitorData;
+      for (let recordList of this.recordLists) {
+        recordList.recordMap = new Map<string, MtRecord>();
+        for (let mtData of recordList.mtDataList) {
+          recordList.recordMap.set(mtData.mtName, mtData);
+        }
+      }
+    },
+    getDistanceFromLatLonInKm(
+      lat1?: number,
+      lon1?: number,
+      lat2?: number,
+      lon2?: number,
+    ): number | undefined {
+      function deg2rad(deg: number) {
+        return deg * (Math.PI / 180);
+      }
+      if (
+        lat1 === undefined ||
+        lat2 === undefined ||
+        lon1 === undefined ||
+        lon2 === undefined
+      )
+        return undefined;
+
+      let R = 6371; // Radius of the earth in km
+      let dLat = deg2rad(lat2 - lat1); // deg2rad below
+      let dLon = deg2rad(lon2 - lon1);
+      let a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) *
+          Math.cos(deg2rad(lat2)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      let d = R * c; // Distance in km
+      return d;
+    },
+    geMtRecordValue(recordList: DisplayRecordList, mt: string): string {
+      let mtRecord = recordList?.recordMap!.get(mt);
+      let mtCase = this.mtMap.get(mt) as MonitorType;
+      if (mtRecord === undefined || mtRecord.value === undefined)
+        return `${mtCase.desp}: - ${mtCase.unit}`;
+
+      return `${mtCase.desp}: ${mtRecord.value.toFixed(mtCase.prec)} ${
+        mtCase.unit
+      }`;
     },
   },
 });
