@@ -53,10 +53,19 @@
             </b-button>
             <b-button
               v-ripple.400="'rgba(186, 191, 199, 0.15)'"
+              class="mr-1"
               type="reset"
               variant="outline-secondary"
             >
               取消
+            </b-button>
+            <b-button
+              v-ripple.400="'rgba(255, 255, 255, 0.15)'"
+              type="submit"
+              variant="primary"
+              @click="exportExcel"
+            >
+              下載Excel
             </b-button>
           </b-col>
         </b-row>
@@ -77,8 +86,12 @@ import 'vue2-datepicker/index.css';
 import 'vue2-datepicker/locale/zh-tw';
 const Ripple = require('vue-ripple-directive');
 import { mapActions, mapGetters, mapMutations } from 'vuex';
+import { Monitor } from '../store/monitors/types';
 import moment from 'moment';
 import axios from 'axios';
+const excel = require('../libs/excel');
+const _ = require('lodash');
+
 interface AisDataResp {
   columns: Array<string>;
   ships: Array<any>;
@@ -135,6 +148,31 @@ export default Vue.extend({
       } catch (err) {
         console.error(`${err}`);
       }
+    },
+    exportExcel() {
+      const title = this.columns;
+      const key = this.columns;
+      /*
+      for (let entry of this.rows) {
+        let e = entry as any;
+        for (let k of key) {
+          e[k] = _.get(entry, k);
+        }
+      }*/
+
+      const port = this.mMap.get(this.form.monitor) as Monitor;
+      const timeStr = moment(this.form.start).format('ll');
+      const respType = this.respTypes.find(
+        resp => resp.id === this.form.respType,
+      );
+      const params = {
+        title,
+        key,
+        data: this.rows,
+        autoWidth: true,
+        filename: `${port.desc}${timeStr}${respType?.txt}船隻資料`,
+      };
+      excel.export_array_to_excel(params);
     },
   },
 });

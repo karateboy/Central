@@ -123,7 +123,8 @@
   </div>
 </template>
 <style>
-.highcharts-container, .highcharts-container svg {
+.highcharts-container,
+.highcharts-container svg {
   width: 100% !important;
 }
 </style>
@@ -248,63 +249,50 @@ export default Vue.extend({
         this.form.range[0]
       }/${this.form.range[1]}`;
       const res = await axios.get(url);
-      const ret = res.data;
+      const ret = res.data as highcharts.Options;
 
       this.setLoading({ loading: false });
-      if (this.form.chartType !== 'boxplot') {
-        ret.chart = {
-          type: this.form.chartType,
-          zoomType: 'x',
-          panning: true,
-          panKey: 'shift',
-          alignTicks: false,
-        };
+      ret.chart = {
+        type: this.form.chartType,
+        zoomType: 'xy',
+        panning: {
+          enabled: true,
+          type: 'xy',
+        },
+        panKey: 'shift',
+        alignTicks: false,
+      };
 
-        const pointFormatter = function pointFormatter(this: any) {
-          const d = new Date(this.x);
-          return `${d.toLocaleString()}:${Math.round(this.y)}度`;
-        };
+      const pointFormatter = function pointFormatter(this: any) {
+        const d = new Date(this.x);
+        return `${d.toLocaleString()}:${Math.round(this.y)}度`;
+      };
 
-        ret.colors = [
-          '#7CB5EC',
-          '#434348',
-          '#90ED7D',
-          '#F7A35C',
-          '#8085E9',
-          '#F15C80',
-          '#E4D354',
-          '#2B908F',
-          '#FB9FA8',
-          '#91E8E1',
-          '#7CB5EC',
-          '#80C535',
-          '#969696',
-        ];
+      ret.tooltip = { valueDecimals: 2 };
+      ret.legend = { enabled: true };
+      ret.credits = {
+        enabled: false,
+        href: 'http://www.wecc.com.tw/',
+      };
+      let xAxis = ret.xAxis as highcharts.XAxisOptions;
+      xAxis.type = 'datetime';
+      xAxis.dateTimeLabelFormats = {
+        day: '%b%e日',
+        week: '%b%e日',
+        month: '%y年%b',
+      };
 
-        ret.tooltip = { valueDecimals: 2 };
-        ret.legend = { enabled: true };
-        ret.credits = {
-          enabled: false,
-          href: 'http://www.wecc.com.tw/',
-        };
-        ret.xAxis.type = 'datetime';
-        ret.xAxis.dateTimeLabelFormats = {
-          day: '%b%e日',
-          week: '%b%e日',
-          month: '%y年%b',
-        };
-
-        ret.plotOptions = {
-          scatter: {
-            tooltip: {
-              pointFormatter,
-            },
+      ret.plotOptions = {
+        scatter: {
+          tooltip: {
+            pointFormatter,
           },
-        };
-        ret.time = {
-          timezoneOffset: -480,
-        };
-      }
+        },
+      };
+      ret.time = {
+        timezoneOffset: -480,
+      };
+
       highcharts.chart('chart_container', ret);
     },
     async downloadExcel() {

@@ -113,6 +113,9 @@ import useAppConfig from '../@core/app-config/useAppConfig';
 import moment from 'moment';
 import axios from 'axios';
 import highcharts from 'highcharts';
+const jStat = require('jstat');
+const highchartsRegression = require('highcharts-regression');
+highchartsRegression(highcharts);
 
 export default Vue.extend({
   components: {
@@ -253,22 +256,6 @@ export default Vue.extend({
           },
         };
 
-        ret.colors = [
-          '#7CB5EC',
-          '#434348',
-          '#90ED7D',
-          '#F7A35C',
-          '#8085E9',
-          '#F15C80',
-          '#E4D354',
-          '#2B908F',
-          '#FB9FA8',
-          '#91E8E1',
-          '#7CB5EC',
-          '#80C535',
-          '#969696',
-        ];
-
         let prec = Math.max(mt1.prec, mt2.prec);
 
         ret.tooltip = { valueDecimals: prec };
@@ -277,13 +264,37 @@ export default Vue.extend({
           enabled: false,
           href: 'http://www.wecc.com.tw/',
         };
-
+        let series = ret.series as Array<any>;
+        series[0].regression = true;
         highcharts.chart('chart_container', ret);
       } catch (err) {
         throw Error(`${err}`);
       } finally {
         this.setLoading({ loading: false });
       }
+    },
+    regression(arrWeight: Array<number>, arrHeight: Array<number>) {
+      let r, sy, sx, b, a, meanX, meanY;
+      r = jStat.corrcoeff(arrHeight, arrWeight);
+      sy = jStat.stdev(arrWeight);
+      sx = jStat.stdev(arrHeight);
+      meanY = jStat(arrWeight).mean();
+      meanX = jStat(arrHeight).mean();
+      b = r * (sy / sx);
+      a = meanY - meanX * b;
+      //Set up a line
+      let y1, y2, x1, x2;
+      x1 = jStat.min(arrHeight);
+      x2 = jStat.max(arrHeight);
+      y1 = a + b * x1;
+      y2 = a + b * x2;
+      return {
+        line: [
+          [x1, y1],
+          [x2, y2],
+        ],
+        r,
+      };
     },
   },
 });

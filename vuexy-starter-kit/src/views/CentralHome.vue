@@ -207,6 +207,7 @@ export default Vue.extend({
       let mtInfo = this.mtMap.get(mt) as MonitorType;
       ret.title!.text = `${mtInfo.desp}趨勢圖`;
 
+      /*
       ret.colors = [
         '#7CB5EC',
         '#434348',
@@ -221,7 +222,7 @@ export default Vue.extend({
         '#7CB5EC',
         '#80C535',
         '#969696',
-      ];
+      ];*/
 
       ret.tooltip = { valueDecimals: 2 };
       ret.legend = { enabled: true };

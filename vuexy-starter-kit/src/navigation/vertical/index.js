@@ -44,16 +44,6 @@ export default [
         route: 'wind-rose-query',
       },
       {
-        title: '校正資料查詢',
-        route: 'calibration-query',
-      },
-      {
-        title: '警報記錄查詢',
-        route: 'alarm-query',
-        action: 'read',
-        resource: 'Data',
-      },
-      {
         title: '船期查詢',
         route: 'ship-query',
         action: 'read',
@@ -65,6 +55,16 @@ export default [
     title: '報表查詢',
     icon: 'BookOpenIcon',
     children: [
+      {
+        title: '校正資料查詢',
+        route: 'calibration-query',
+      },
+      {
+        title: '警報記錄查詢',
+        route: 'alarm-query',
+        action: 'read',
+        resource: 'Data',
+      },
       {
         title: '監測報表',
         route: 'report',
