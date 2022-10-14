@@ -6,12 +6,11 @@ import com.google.inject.ImplementedBy
 import org.mongodb.scala.result.UpdateResult
 import play.api.libs.json.Json
 
+import java.util.Date
 import scala.concurrent.Future
 
-case class ManualAuditLog(dataTime: DateTime, mt: String, modifiedTime: DateTime,
-                          operator: String, changedStatus: String, reason: String)
 
-case class ManualAuditLog2(dataTime: Long, mt: String, modifiedTime: Long,
+case class ManualAuditLog(dataTime: Date, mt: String, modifiedTime: Date,
                            operator: String, changedStatus: String, reason: String, monitor:String)
 
 trait ManualAuditLogDB {
@@ -20,5 +19,5 @@ trait ManualAuditLogDB {
 
   def upsertLog(log: ManualAuditLog): Future[UpdateResult]
 
-  def queryLog2(startTime: Imports.DateTime, endTime: Imports.DateTime): Future[Seq[ManualAuditLog2]]
+  def queryLog2(startTime: Imports.DateTime, endTime: Imports.DateTime): Future[Seq[ManualAuditLog]]
 }

@@ -25,7 +25,7 @@ trait RecordDB {
 
   def upsertRecord(doc: RecordList)(colName: String): Future[UpdateResult]
 
-  def updateRecordStatus(dt: Long, mt: String, status: String, monitor: String = Monitor.activeId)(colName: String): Future[UpdateResult]
+  def updateRecordStatus(dt: Long, mt: String, status: String, monitor: String)(colName: String): Future[UpdateResult]
 
   def getRecordMap(colName: String)
                   (monitor: String, mtList: Seq[String], startTime: DateTime, endTime: DateTime): Map[String, Seq[Record]] = {

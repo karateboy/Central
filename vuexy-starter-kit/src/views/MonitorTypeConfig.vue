@@ -11,7 +11,7 @@
         selected-variant="info"
         bordered
         sticky-header
-        style="max-height: 650px"
+        style="max-height: 750px"
         @row-selected="onMtSelected"
       >
         <template #cell(desp)="row">
@@ -34,6 +34,13 @@
         <template #cell(order)="row">
           <b-form-input
             v-model.number="row.item.order"
+            size="sm"
+            @change="markDirty(row.item)"
+          />
+        </template>
+        <template #cell(std_law_low)="row">
+          <b-form-input
+            v-model.number="row.item.std_law_low"
             size="sm"
             @change="markDirty(row.item)"
           />
@@ -211,8 +218,12 @@ export default Vue.extend({
         label: '順序',
       },
       {
+        key: 'std_law_low',
+        label: '下限值',
+      },
+      {
         key: 'std_law',
-        label: '法規值',
+        label: '上限值',
       },
       {
         key: 'zd_law',
@@ -321,6 +332,7 @@ export default Vue.extend({
       if (mt.zd_law === '') mt.zd_law = null;
       if (mt.std_internal === '') mt.std_internal = null;
       if (mt.std_law === '') mt.std_law = null;
+      if (mt.std_law_low === '') mt.std_law_low = null;
       if (mt.levelSeq) {
         try {
           let levelSeq = mt.levelSeq as string;

@@ -86,6 +86,11 @@ export default Vue.extend({
           sortable: true,
         },
         {
+          key: 'monitor',
+          label: '測站',
+          sortable: true,
+        },
+        {
           key: 'mt',
           label: '測項',
           sortable: true,
@@ -118,6 +123,7 @@ export default Vue.extend({
     };
   },
   computed: {
+    ...mapGetters('monitors', ['mMap']),
     ...mapState('monitorTypes', ['monitorTypes']),
     ...mapGetters('monitorTypes', ['mtMap']),
   },
@@ -127,6 +133,7 @@ export default Vue.extend({
         log.dataTime = moment(log.dataTime).format('lll');
         log.modifiedTime = moment(log.modifiedTime).format('lll');
         log.mt = this.mtMap.get(log.mt).desp;
+        log.monitor = this.mMap.get(log.monitor).desc;
       }
     },
     async query() {
@@ -140,5 +147,3 @@ export default Vue.extend({
   },
 });
 </script>
-
-<style></style>

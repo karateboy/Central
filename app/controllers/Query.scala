@@ -46,7 +46,7 @@ case class DataTab(columnNames: Seq[String], rows: Seq[RowData])
 
 case class ManualAuditParam(reason: String, updateList: Seq[UpdateRecordParam])
 
-case class UpdateRecordParam(time: Long, mt: String, status: String)
+case class UpdateRecordParam(time: Long, monitor:String, mt: String, status: String)
 
 @Singleton
 class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorOp: MonitorDB,
@@ -781,8 +781,8 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
         },
         maParam => {
           for (param <- maParam.updateList) {
-            recordOp.updateRecordStatus(param.time, param.mt, param.status)(TableType.mapCollection(tabType))
-            val log = ManualAuditLog(new DateTime(param.time), mt = param.mt, modifiedTime = DateTime.now(),
+            recordOp.updateRecordStatus(dt = param.time, monitor=param.monitor, mt = param.mt, status = param.status)(TableType.mapCollection(tabType))
+            val log = ManualAuditLog(new DateTime(param.time).toDate, monitor = param.monitor, mt = param.mt, modifiedTime = DateTime.now(),
               operator = user.name, changedStatus = param.status, reason = maParam.reason)
             manualAuditLogOp.upsertLog(log)
           }
@@ -793,7 +793,7 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
   def manualAuditHistoryReport(start: Long, end: Long) = Security.Authenticated.async {
     val startTime = new DateTime(start)
     val endTime = new DateTime(end)
-    implicit val w = Json.writes[ManualAuditLog2]
+    implicit val w = Json.writes[ManualAuditLog]
     val logFuture = manualAuditLogOp.queryLog2(startTime, endTime)
     val resultF =
       for {

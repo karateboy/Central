@@ -4,6 +4,20 @@
       <b-form @submit.prevent>
         <b-row>
           <b-col cols="12">
+            <b-form-group label="測點" label-for="monitor" label-cols-md="3">
+              <span>
+                <v-select
+                  id="monitor"
+                  v-model="form.monitors"
+                  label="desc"
+                  :reduce="m => m._id"
+                  :options="monitorOfNoEPA"
+                  multiple
+                />
+              </span>
+            </b-form-group>
+          </b-col>
+          <b-col cols="12">
             <b-form-group
               label="測項"
               label-for="monitorType"
@@ -165,7 +179,7 @@ import DatePicker from 'vue2-datepicker';
 import 'vue2-datepicker/index.css';
 import 'vue2-datepicker/locale/zh-tw';
 const Ripple = require('vue-ripple-directive');
-import { mapState, mapGetters, mapActions, mapMutations } from 'vuex';
+import { mapState, mapActions, mapGetters, mapMutations } from 'vuex';
 import moment from 'moment';
 import axios from 'axios';
 
@@ -217,8 +231,8 @@ export default Vue.extend({
   computed: {
     ...mapState('monitorTypes', ['monitorTypes']),
     ...mapState('monitors', ['monitors']),
+    ...mapGetters('monitors', ['mMap', 'monitorOfNoEPA']),
     ...mapGetters('monitorTypes', ['mtMap']),
-    ...mapGetters('monitors', ['mMap']),
     resultTitle(): string {
       return `總共${this.rows.length}筆`;
     },
@@ -243,12 +257,12 @@ export default Vue.extend({
     await this.fetchMonitorTypes();
     await this.fetchMonitors();
 
-    if (this.monitors.length !== 0) {
-      this.form.monitors.push(this.monitors[0]._id);
+    if (this.monitorOfNoEPA.length !== 0) {
+      this.form.monitors.push(this.monitorOfNoEPA[0]._id);
     }
 
     if (this.monitorTypes.length !== 0) {
-      this.form.monitorTypes.push('PM25');
+      this.form.monitorTypes.push(this.monitorTypes[0]._id);
     }
   },
   methods: {
@@ -312,15 +326,20 @@ export default Vue.extend({
       const updateList = [];
       for (const item of this.rows) {
         if (item.include) {
-          for (let i = 0; i < item.cellData.length; i++) {
-            const cellData = item.cellData[i];
-            if (cellData.v !== '-') {
-              const status = this.form2.statusCode + cellData.status.substr(1);
-              updateList.push({
-                time: item.date,
-                mt: this.form.monitorTypes[i],
-                status,
-              });
+          for (let mtIdx = 0; mtIdx < this.form.monitorTypes.length; mtIdx++) {
+            for (let mIdx = 0; mIdx < this.form.monitors.length; mIdx++) {
+              const cellData =
+                item.cellData[mIdx * this.form.monitors.length + mtIdx];
+              if (cellData.v !== '-') {
+                const status =
+                  this.form2.statusCode + cellData.status.substr(1);
+                updateList.push({
+                  time: item.date,
+                  monitor: this.form.monitors[mIdx],
+                  mt: this.form.monitorTypes[mtIdx],
+                  status,
+                });
+              }
             }
           }
         }

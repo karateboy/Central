@@ -63,7 +63,7 @@ class RecordOp @Inject()(mongodb: MongoDB, monitorTypeOp: MonitorTypeOp, calibra
     f
   }
 
-  override def updateRecordStatus(dt: Long, mt: String, status: String, monitor: String = Monitor.activeId)(colName: String): Future[UpdateResult] = {
+  override def updateRecordStatus(dt: Long, mt: String, status: String, monitor: String)(colName: String): Future[UpdateResult] = {
     import org.mongodb.scala.model.Filters._
     import org.mongodb.scala.model.Updates._
 

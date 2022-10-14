@@ -48,6 +48,21 @@
           </b-col>
           <b-col cols="12">
             <b-form-group
+              label="回歸趨勢模式"
+              label-for="regressionModes"
+              label-cols-md="3"
+            >
+              <v-select
+                id="regressionModes"
+                v-model="form.regressionSettings.type"
+                label="txt"
+                :reduce="dt => dt.id"
+                :options="regressionModes"
+              />
+            </b-form-group>
+          </b-col>
+          <b-col cols="12">
+            <b-form-group
               label="狀態"
               label-for="statusFilter"
               label-cols-md="3"
@@ -100,6 +115,11 @@
 </template>
 <style lang="scss">
 @import '@core/scss/vue/libs/vue-select.scss';
+
+.highcharts-container,
+.highcharts-container svg {
+  width: 100% !important;
+}
 </style>
 <script lang="ts">
 import Vue from 'vue';
@@ -127,6 +147,10 @@ export default Vue.extend({
 
   data() {
     const range = [moment().subtract(1, 'days').valueOf(), moment().valueOf()];
+    let regressionSettings: any = {
+      type: 'linear',
+      name: '%eq R^2:%r2 標準差:%se',
+    };
     return {
       dataTypes: [
         { txt: '小時資料', id: 'hour' },
@@ -140,39 +164,22 @@ export default Vue.extend({
         { id: 'invalid', txt: '無效數據' },
         { id: 'valid', txt: '有效數據' },
       ],
-      display: false,
-      chartTypes: [
-        {
-          type: 'line',
-          desc: '折線圖',
-        },
-        {
-          type: 'spline',
-          desc: '曲線圖',
-        },
-        {
-          type: 'area',
-          desc: '面積圖',
-        },
-        {
-          type: 'areaspline',
-          desc: '曲線面積圖',
-        },
-        {
-          type: 'column',
-          desc: '柱狀圖',
-        },
-        {
-          type: 'scatter',
-          desc: '點圖',
-        },
+      regressionModes: [
+        { id: 'linear', txt: '線性' },
+        { id: 'exponential', txt: 'exponential指數' },
+        { id: 'polynomial', txt: 'polynomial多項式' },
+        { id: 'power', txt: 'power' },
+        { id: 'logarithmic', txt: 'logarithmic對數式' },
+        { id: 'loess', txt: 'loess' },
       ],
+      display: false,
       form: {
         monitors: Array<string>(),
         monitorTypes: Array<string>(),
         dataType: 'hour',
         statusFilter: 'all',
         range,
+        regressionSettings,
       },
     };
   },
@@ -218,17 +225,6 @@ export default Vue.extend({
         }/${this.form.range[1]}`;
         const res = await axios.get(url);
         const ret = res.data;
-
-        ret.legend = {
-          layout: 'vertical',
-          align: 'left',
-          verticalAlign: 'top',
-          x: 100,
-          y: 70,
-          floating: true,
-          borderWidth: 1,
-        };
-
         let mt1 = this.mtMap.get(this.form.monitorTypes[0]);
         let mt2 = this.mtMap.get(this.form.monitorTypes[1]);
         ret.plotOptions = {
@@ -251,7 +247,7 @@ export default Vue.extend({
             },
             tooltip: {
               headerFormat: '<b>{series.name}</b><br>',
-              pointFormat: `${mt1.desp}{point.x} ${mt1.unit}, ${mt2.desp}{point.y} ${mt2.unit}`,
+              pointFormat: `${mt1.desp}:{point.x} ${mt1.unit}, ${mt2.desp}:{point.y} ${mt2.unit}`,
             },
           },
         };
@@ -259,42 +255,22 @@ export default Vue.extend({
         let prec = Math.max(mt1.prec, mt2.prec);
 
         ret.tooltip = { valueDecimals: prec };
-        //ret.legend = { enabled: true };
         ret.credits = {
           enabled: false,
           href: 'http://www.wecc.com.tw/',
         };
         let series = ret.series as Array<any>;
         series[0].regression = true;
+        series[0].regressionSettings = {
+          type: this.form.regressionSettings.type,
+          name: '%eq R^2:%r2',
+        };
         highcharts.chart('chart_container', ret);
       } catch (err) {
         throw Error(`${err}`);
       } finally {
         this.setLoading({ loading: false });
       }
-    },
-    regression(arrWeight: Array<number>, arrHeight: Array<number>) {
-      let r, sy, sx, b, a, meanX, meanY;
-      r = jStat.corrcoeff(arrHeight, arrWeight);
-      sy = jStat.stdev(arrWeight);
-      sx = jStat.stdev(arrHeight);
-      meanY = jStat(arrWeight).mean();
-      meanX = jStat(arrHeight).mean();
-      b = r * (sy / sx);
-      a = meanY - meanX * b;
-      //Set up a line
-      let y1, y2, x1, x2;
-      x1 = jStat.min(arrHeight);
-      x2 = jStat.max(arrHeight);
-      y1 = a + b * x1;
-      y2 = a + b * x2;
-      return {
-        line: [
-          [x1, y1],
-          [x2, y2],
-        ],
-        r,
-      };
     },
   },
 });

@@ -42,6 +42,7 @@ class MonitorTypeOp @Inject()(sqlServer: SqlServer) extends MonitorTypeDB {
                 ,[fixedM] = ${mt.fixedM}
                 ,[fixedB] = ${mt.fixedB}
                 ,[overLawSignalType] = ${mt.overLawSignalType}
+                ,[std_law_low] = ${mt.std_law_low}
             WHERE [id] = ${mt._id}
           IF(@@ROWCOUNT = 0)
             BEGIN
@@ -64,7 +65,8 @@ class MonitorTypeOp @Inject()(sqlServer: SqlServer) extends MonitorTypeDB {
            ,[accumulated]
            ,[fixedM]
            ,[fixedB]
-           ,[overLawSignalType])
+           ,[overLawSignalType]
+           ,[std_law_low])
           VALUES
               (${mt._id}
                 ,${mt.desp}
@@ -84,7 +86,8 @@ class MonitorTypeOp @Inject()(sqlServer: SqlServer) extends MonitorTypeDB {
                 ,${mt.accumulated}
                 ,${mt.fixedM}
                 ,${mt.fixedB}
-                ,${mt.overLawSignalType})
+                ,${mt.overLawSignalType}
+                ,${mt.std_law_low})
             END
          """.update().apply()
     UpdateResult.acknowledged(ret, ret, null)
@@ -119,7 +122,8 @@ class MonitorTypeOp @Inject()(sqlServer: SqlServer) extends MonitorTypeDB {
       accumulated = rs.booleanOpt("accumulated"),
       fixedM = rs.doubleOpt("fixedM"),
       fixedB = rs.doubleOpt("fixedB"),
-      overLawSignalType = rs.stringOpt("overLawSignalType"))
+      overLawSignalType = rs.stringOpt("overLawSignalType"),
+      std_law_low = rs.doubleOpt("std_law_low"))
   }
 
   override def deleteItemFuture(_id: String): Unit = {
@@ -153,6 +157,7 @@ class MonitorTypeOp @Inject()(sqlServer: SqlServer) extends MonitorTypeDB {
             [fixedM] [float] NULL,
             [fixedB] [float] NULL,
             [overLawSignalType] [nvarchar](50),
+            [std_law_low] [float] NULL,
         CONSTRAINT [PK_monitorType] PRIMARY KEY CLUSTERED
         (
 	        [id] ASC
@@ -180,6 +185,13 @@ class MonitorTypeOp @Inject()(sqlServer: SqlServer) extends MonitorTypeDB {
       sql"""
           Alter Table monitorType
           Add [overLawSignalType] [nvarchar](50);
+         """.execute().apply()
+    }
+
+    if (!sqlServer.getColumnNames(tabName).contains("std_law_low")) {
+      sql"""
+          Alter Table monitorType
+          Add [std_law_low] [float];
          """.execute().apply()
     }
 

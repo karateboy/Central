@@ -1,6 +1,26 @@
 <template>
   <div>
     <b-card title="測點管理" class="text-center">
+      <b-row>
+        <b-col class="d-flex justify-content-around p-1">
+          <b-button variant="gradient-success" @click="addMonitor()"
+            >新增</b-button
+          >
+          <b-button
+            variant="gradient-danger"
+            :disabled="!Boolean(selected)"
+            @click="deleteMonitor()"
+            >刪除</b-button
+          >
+          <b-button
+            v-ripple.400="'rgba(255, 255, 255, 0.15)'"
+            variant="primary"
+            @click="save"
+          >
+            儲存
+          </b-button>
+        </b-col>
+      </b-row>
       <b-table
         responsive
         :fields="columns"
@@ -8,42 +28,10 @@
         bordered
         sticky-header
         select-mode="single"
-        style="min-height: 600px"
+        style="min-height: 750px"
         selectable
         @row-selected="onInstSelected"
       >
-        <template #thead-top
-          ><b-tr>
-            <b-td colspan="4">
-              <b-button variant="gradient-success" @click="addMonitor()"
-                >新增</b-button
-              >
-              <b-button
-                class="ml-2"
-                variant="gradient-danger"
-                :disabled="!Boolean(selected)"
-                @click="deleteMonitor()"
-                >刪除</b-button
-              >
-              <b-button
-                v-ripple.400="'rgba(255, 255, 255, 0.15)'"
-                variant="primary"
-                class="ml-2"
-                @click="save"
-              >
-                儲存
-              </b-button>
-              <b-button
-                v-ripple.400="'rgba(255, 255, 255, 0.15)'"
-                variant="primary"
-                class="ml-2"
-                @click="select"
-              >
-                切換測量目標
-              </b-button>
-            </b-td></b-tr
-          >
-        </template>
         <template #cell(selected)="{ rowSelected }">
           <template v-if="rowSelected">
             <span aria-hidden="true">&check;</span>

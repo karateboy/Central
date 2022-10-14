@@ -79,7 +79,7 @@ import 'vue2-datepicker/locale/zh-tw';
 const Ripple = require('vue-ripple-directive');
 import moment from 'moment';
 import axios from 'axios';
-import { mapState, mapActions, mapGetters, mapMutations } from 'vuex';
+import { mapActions, mapGetters, mapMutations } from 'vuex';
 import { MonitorType } from './types';
 import { Monitor } from '../store/monitors/types';
 const excel = require('../libs/excel');

@@ -150,7 +150,11 @@ class DataLogger @Inject()(monitorTypeDB: MonitorTypeDB, monitorOp: MonitorDB, i
         BadRequest(Json.obj("ok" -> false, "msg" -> JsError(err).toString().toString()))
       },
         isJsonList => {
-          isJsonList.map(_.toInstrumentStatus(monitor)).foreach(instrumentStatusDB.log(_))
+          isJsonList.map(_.toInstrumentStatus(monitor)).filter(status=>{
+            // Only record instrument status hourly
+            val dateTime = new DateTime(status.time)
+            dateTime.getMinuteOfHour == 0
+          }).foreach(instrumentStatusDB.log(_))
           Ok(Json.obj("ok" -> true))
         })
   }

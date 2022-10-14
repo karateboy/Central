@@ -2,7 +2,7 @@ package models.sql
 
 import com.github.nscala_time.time.Imports
 import com.mongodb.client.result.UpdateResult
-import models.{ManualAuditLog, ManualAuditLog2, ManualAuditLogDB}
+import models.{ManualAuditLog, ManualAuditLogDB}
 import scalikejdbc._
 
 import javax.inject.{Inject, Singleton}
@@ -18,26 +18,29 @@ class ManualAuditLogOp @Inject()(sqlServer: SqlServer) extends ManualAuditLogDB 
     val ret =
       sql"""
           UPDATE [dbo].[auditLog]
-            SET [dateTime] = ${log.dataTime.toDate}
+            SET [dateTime] = ${log.dataTime}
+                ,[monitor] = ${log.monitor}
                 ,[mt] = ${log.mt}
                 ,[modifiedTime] = ${log.modifiedTime}
                 ,[operator] = ${log.operator}
                 ,[changedStatus] = ${log.changedStatus}
                 ,[reason] = ${log.reason}
-                Where [dateTime] = ${log.dataTime.toDate} and [mt] = ${log.mt}
+                Where [dateTime] = ${log.dataTime} and [mt] = ${log.mt}
             IF(@@ROWCOUNT = 0)
             BEGIN
               INSERT INTO [dbo].[auditLog]
               ([dateTime]
+                ,[monitor]
                 ,[mt]
                 ,[modifiedTime]
                 ,[operator]
                 ,[changedStatus]
                 ,[reason])
               VALUES
-                (${log.dataTime.toDate}
+                (${log.dataTime}
+                ,${log.monitor}
                 ,${log.mt}
-                ,${log.modifiedTime.toDate}
+                ,${log.modifiedTime}
                 ,${log.operator}
                 ,${log.changedStatus}
                 ,${log.reason})
@@ -48,7 +51,7 @@ class ManualAuditLogOp @Inject()(sqlServer: SqlServer) extends ManualAuditLogDB 
 
   init()
 
-  override def queryLog2(startTime: Imports.DateTime, endTime: Imports.DateTime): Future[Seq[ManualAuditLog2]] = Future {
+  override def queryLog2(startTime: Imports.DateTime, endTime: Imports.DateTime): Future[Seq[ManualAuditLog]] = Future {
     implicit val session: DBSession = ReadOnlyAutoSession
     sql"""
          Select *
@@ -57,10 +60,10 @@ class ManualAuditLogOp @Inject()(sqlServer: SqlServer) extends ManualAuditLogDB 
          """.map(mapper).list().apply()
   }
 
-  private def mapper(rs: WrappedResultSet): ManualAuditLog2 =
-    ManualAuditLog2(rs.jodaDateTime("dateTime").getMillis,
+  private def mapper(rs: WrappedResultSet): ManualAuditLog =
+    ManualAuditLog(rs.jodaDateTime("dateTime").toDate,
       mt = rs.string("mt"),
-      modifiedTime = rs.jodaDateTime("modifiedTime").getMillis,
+      modifiedTime = rs.jodaDateTime("modifiedTime").toDate,
       operator = rs.string("operator"),
       changedStatus = rs.string("changedStatus"),
       reason = rs.string("reason"),

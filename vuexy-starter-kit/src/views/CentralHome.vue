@@ -22,7 +22,7 @@
         <div class="map_container">
           <GmapMap
             ref="map"
-            :center="getMapCenter(aisData)"
+            :center="getMapCenter(aisData.monitor, aisData)"
             :zoom="13"
             map-type-id="hybrid"
             class="map_canvas"
@@ -263,17 +263,31 @@ export default Vue.extend({
       };
       highcharts.chart(`history_${mt}`, ret);
     },
-    getMapCenter(data: ParsedAisData): any {
-      let lats = data.ships.map(ship => ship.position!.lat);
-      let lngs = data.ships.map(ship => ship.position!.lng);
+    getMapCenter(monitor: string, data: ParsedAisData): any {
+      // 船的位置
+      if (data.lat !== undefined && data.lng !== undefined)
+        return { lat: data.lat, lng: data.lng };
 
-      let latMin = Math.min.apply(Math, lats);
-      let latMax = Math.max.apply(Math, lats);
-      let lngMin = Math.min.apply(Math, lngs);
-      let lngMax = Math.max.apply(Math, lngs);
-      let lat = (latMin + latMax) / 2;
-      let lng = (lngMin + lngMax) / 2;
-      return { lat, lng };
+      // 船隻中心
+      if (data.ships.length !== 0) {
+        let lats = data.ships.map(ship => ship.position!.lat);
+        let lngs = data.ships.map(ship => ship.position!.lng);
+
+        let latMin = Math.min.apply(Math, lats);
+        let latMax = Math.max.apply(Math, lats);
+        let lngMin = Math.min.apply(Math, lngs);
+        let lngMax = Math.max.apply(Math, lngs);
+        let lat = (latMin + latMax) / 2;
+        let lng = (lngMin + lngMax) / 2;
+        return { lat, lng };
+      }
+
+      // 港口中心
+      let mCase = this.mMap.get(monitor) as Monitor;
+      return {
+        lat: mCase.lat,
+        lng: mCase.lng,
+      };
     },
     getMtName(mt: string): string {
       let mtInfo = this.mtMap.get(mt) as MonitorType;
