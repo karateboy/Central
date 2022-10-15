@@ -51,7 +51,7 @@ class AisDataController @Inject()(aisDB: AisDB, monitorDB: MonitorDB, recordDB: 
       implicit val w2 = Json.writes[ShipData]
       implicit val w1 = Json.writes[ShipRouteResult]
       val shipDataList = shipRouteMap.map(ship=> ShipData(ship._1, ship._2)).toSeq
-      Ok(Json.toJson(ShipRouteResult(monitorRecord, shipDataList)))
+      Ok(Json.toJson(ShipRouteResult(monitorRecord.reverse, shipDataList)))
     }
   }
 }
