@@ -105,7 +105,6 @@ export default Vue.extend({
     Ripple,
   },
   data() {
-    let me: any = this;
     let columns = Array<string>();
     let rows = Array<any>();
     return {

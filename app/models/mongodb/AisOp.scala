@@ -76,4 +76,17 @@ class AisOp @Inject()(mongodb: MongoDB) extends AisDB {
         Some(ret(0))
     })
   }
+
+  override def getAisDataList(monitor: String, respType: String, start: Date, end: Date): Future[Seq[AisData]] = {
+    val filter = Filters.and(
+      Filters.equal("monitor", monitor),
+      Filters.gte("time", start),
+      Filters.lt("time", end),
+      Filters.equal("respType", respType))
+    val f = collection.find(filter)
+      .sort(Sorts.descending("time"))
+      .limit(1).toFuture()
+    f onFailure errorHandler
+    f
+  }
 }

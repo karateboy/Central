@@ -1,0 +1,407 @@
+<template>
+  <div>
+    <b-card>
+      <b-form @submit.prevent>
+        <b-row>
+          <b-col cols="12">
+            <b-form-group label="測點" label-for="monitor" label-cols-md="3">
+              <v-select
+                id="monitor"
+                v-model="form.monitor"
+                label="desc"
+                :reduce="mt => mt._id"
+                :options="monitorOfNoEPA"
+              />
+            </b-form-group>
+          </b-col>
+          <b-col cols="12">
+            <b-form-group
+              label="資料種類"
+              label-for="dataType"
+              label-cols-md="3"
+            >
+              <v-select
+                id="dataType"
+                v-model="form.dataType"
+                label="txt"
+                :reduce="dt => dt.id"
+                :options="dataTypes"
+              />
+            </b-form-group>
+          </b-col>
+          <b-col cols="12">
+            <b-form-group
+              label="資料區間"
+              label-for="dataRange"
+              label-cols-md="3"
+            >
+              <date-picker
+                id="dataRange"
+                v-model="form.range"
+                :range="true"
+                type="datetime"
+                format="YYYY-MM-DD HH:mm"
+                value-type="timestamp"
+                :show-second="false"
+              />
+            </b-form-group>
+          </b-col>
+          <b-col cols="12">
+            <b-form-group
+              label="測項濃度"
+              label-for="monitorType"
+              label-cols-md="3"
+            >
+              <v-select
+                id="monitorType"
+                v-model="form.monitorType"
+                label="desp"
+                :reduce="mt => mt._id"
+                :options="activatedMonitorTypes"
+              />
+            </b-form-group>
+          </b-col>
+          <b-col offset-md="3">
+            <b-button
+              v-ripple.400="'rgba(255, 255, 255, 0.15)'"
+              type="submit"
+              variant="primary"
+              class="mr-1"
+              @click="query"
+            >
+              查詢
+            </b-button>
+            <b-button
+              v-ripple.400="'rgba(186, 191, 199, 0.15)'"
+              class="mr-1"
+              type="reset"
+              variant="outline-secondary"
+            >
+              取消
+            </b-button>
+          </b-col>
+        </b-row>
+      </b-form>
+    </b-card>
+
+    <b-card
+      v-show="displayRoute"
+      border-variant="primary"
+      :title="shipRouteTitle"
+    >
+      <b-alert show fade variant="primary"
+        ><h2>
+          圖示代表是船隻最後位置,
+          線條代表期間軌跡。監測船點向北線條長度和顏色代表濃度分級，可進一步透過系統管理＞測項管理設定分級。
+        </h2></b-alert
+      >
+      <div class="map_container">
+        <GmapMap
+          ref="map"
+          :center="mapCenter"
+          :zoom="13"
+          map-type-id="hybrid"
+          class="map_canvas"
+          :options="mapOption"
+        >
+          <div v-if="mapLoaded">
+            <GmapMarker
+              v-if="mapLoaded"
+              key="master"
+              :position="mapCenter"
+              :clickable="true"
+              :icon="masterShipIcon"
+            />
+            <GmapPolyline stroke-color="red" :path="masterRoute" />
+            <div v-if="form.monitorType">
+              <GmapPolyline
+                v-for="(recordList, idx) in shipRouteResult.monitorRecords"
+                :key="`mtValue${idx}`"
+                :stroke-color="getRecordColor(recordList)"
+                :stroke-weight="getRecordWeight(recordList)"
+                :path="getRecordLine(recordList)"
+              />
+            </div>
+            <GmapMarker
+              v-for="(ship, idx) in shipRouteResult.shipDataList"
+              :key="`marker${idx + 1}`"
+              :position="ship.route[0]"
+              :clickable="true"
+              :title="ship.name"
+              :icon="shipIcon"
+            />
+            <GmapPolyline
+              v-for="(ship, idx) in shipRouteResult.shipDataList"
+              :key="`route${idx}`"
+              stroke-color="blue"
+              :path="ship.route"
+            />
+          </div>
+        </GmapMap>
+      </div>
+    </b-card>
+  </div>
+</template>
+<style lang="scss">
+@import '@core/scss/vue/libs/vue-select.scss';
+</style>
+<script lang="ts">
+import Vue from 'vue';
+import vSelect from 'vue-select';
+import DatePicker from 'vue2-datepicker';
+import 'vue2-datepicker/index.css';
+import 'vue2-datepicker/locale/zh-tw';
+const Ripple = require('vue-ripple-directive');
+import { mapActions, mapGetters, mapMutations } from 'vuex';
+import { Monitor } from '../store/monitors/types';
+import moment from 'moment';
+import axios from 'axios';
+import { faShip, faFerry } from '@fortawesome/free-solid-svg-icons';
+import {
+  MonitorType,
+  MtRecord,
+  RecordList,
+  RecordListID,
+  Position,
+} from './types';
+
+interface ShipData {
+  name: string;
+  route: Array<Position>;
+}
+
+interface ShipRouteResult {
+  monitorRecords: Array<RecordList>;
+  shipDataList: Array<ShipData>;
+}
+
+export default Vue.extend({
+  components: {
+    DatePicker,
+    vSelect,
+  },
+  directives: {
+    Ripple,
+  },
+  data() {
+    const range = [moment().subtract(1, 'days').valueOf(), moment().valueOf()];
+    let mapLoaded = false;
+    let shipRouteResult: ShipRouteResult = {
+      monitorRecords: new Array<RecordList>(),
+      shipDataList: new Array<ShipData>(),
+    };
+    let mapOption = {
+      zoomControl: true,
+      mapTypeControl: true,
+      scaleControl: true,
+      streetViewControl: true,
+      rotateControl: true,
+      fullscreenControl: true,
+    };
+    let dataTypes = [
+      { txt: '小時資料', id: 'hour' },
+      { txt: '分鐘資料', id: 'min' },
+    ];
+    return {
+      form: {
+        monitor: '',
+        monitorType: '',
+        dataType: 'hour',
+        range,
+      },
+      dataTypes,
+      shipRouteResult,
+      mapOption,
+      mapLoaded,
+    };
+  },
+  computed: {
+    ...mapGetters('monitors', ['mMap', 'monitorOfNoEPA']),
+    ...mapGetters('monitorTypes', ['mtMap', 'activatedMonitorTypes']),
+    shipRouteTitle(): string {
+      if (!this.form.monitor) return '';
+
+      let mCase = this.mMap.get(this.form.monitor) as Monitor;
+      let start = moment(this.form.range[0]).format('lll');
+      let end = moment(this.form.range[1]).format('lll');
+      return `${mCase.desc}${start}至${end}`;
+    },
+    displayRoute(): boolean {
+      return this.mapLoaded && this.shipRouteResult.monitorRecords.length !== 0;
+    },
+    mapCenter(): Position {
+      if (this.shipRouteResult.monitorRecords.length === 0)
+        return { lat: 0, lng: 0 };
+
+      let monitorRecords = this.shipRouteResult.monitorRecords;
+      const lat = monitorRecords[0].mtDataList.find(
+        mtRecord => mtRecord.mtName === 'LAT',
+      )?.value;
+      const lng = monitorRecords[0].mtDataList.find(
+        mtRecord => mtRecord.mtName === 'LNG',
+      )?.value;
+      return { lat: lat ?? 0, lng: lng ?? 0 };
+    },
+    masterShipIcon(): any {
+      if (!this.mapLoaded) return {};
+
+      return {
+        path: faFerry.icon[4] as string,
+        fillColor: '#ff0000',
+        fillOpacity: 1,
+        anchor: new google.maps.Point(
+          faShip.icon[0] / 2, // width
+          faShip.icon[1], // height
+        ),
+        strokeWeight: 1,
+        strokeColor: '#ffffff',
+        scale: 0.06,
+      };
+    },
+    masterRoute(): Array<Position> {
+      if (!this.mapLoaded) return [];
+      let ret = new Array<Position>();
+      return this.shipRouteResult.monitorRecords.flatMap(recordList => {
+        let latRecord = recordList.mtDataList.find(
+          mtData => mtData.mtName === 'LAT',
+        );
+        let lngRecord = recordList.mtDataList.find(
+          mtData => mtData.mtName === 'LNG',
+        );
+        if (
+          latRecord === undefined ||
+          latRecord.value === undefined ||
+          lngRecord === undefined ||
+          lngRecord.value === undefined
+        )
+          return [];
+        else {
+          return [
+            {
+              lat: latRecord.value,
+              lng: lngRecord.value,
+            },
+          ];
+        }
+      });
+    },
+    shipIcon(): any {
+      if (!this.mapLoaded) return {};
+
+      return {
+        path: faShip.icon[4] as string,
+        fillColor: '#0000ff',
+        fillOpacity: 1,
+        anchor: new google.maps.Point(
+          faShip.icon[0] / 2, // width
+          faShip.icon[1], // height
+        ),
+        strokeWeight: 1,
+        strokeColor: '#ffffff',
+        scale: 0.04,
+      };
+    },
+  },
+  async mounted() {
+    await this.fetchMonitors();
+    await this.fetchMonitorTypes();
+
+    if (this.monitorOfNoEPA.length !== 0)
+      this.form.monitor = this.monitorOfNoEPA[0]._id;
+
+    this.$gmapApiPromiseLazy().then(() => {
+      this.mapLoaded = true;
+    });
+
+    if (this.activatedMonitorTypes.length !== 0)
+      this.form.monitorType = this.activatedMonitorTypes[0]._id;
+  },
+  methods: {
+    ...mapActions('monitors', ['fetchMonitors']),
+    ...mapActions('monitorTypes', ['fetchMonitorTypes']),
+    ...mapMutations(['setLoading']),
+    async query() {
+      const url = `/ShipRoute/${this.form.monitor}/${this.form.dataType}/${this.form.range[0]}/${this.form.range[1]}`;
+
+      try {
+        this.setLoading({ loading: true });
+        let res = await axios.get(url);
+        if (res.status === 200) {
+          let shipRouteResult = res.data as ShipRouteResult;
+          this.shipRouteResult.monitorRecords = shipRouteResult.monitorRecords;
+          this.shipRouteResult.shipDataList = shipRouteResult.shipDataList;
+        }
+      } catch (err) {
+        console.error(`${err}`);
+      } finally {
+        this.setLoading({ loading: false });
+      }
+    },
+    getShipIcon(): any {
+      return {
+        path: faShip.icon[4] as string,
+        fillColor: '#0000ff',
+        fillOpacity: 1,
+        anchor: new google.maps.Point(
+          faShip.icon[0] / 2, // width
+          faShip.icon[1], // height
+        ),
+        strokeWeight: 1,
+        strokeColor: '#ffffff',
+        scale: 0.04,
+      };
+    },
+    getRecordValue(recordList: RecordList, mt: string): number | undefined {
+      let mtRecord = recordList.mtDataList.find(
+        mtRecord => mtRecord.mtName === mt,
+      );
+      return mtRecord?.value;
+    },
+    getRecordColor(recordList: RecordList): string {
+      const colors = ['green', 'yellow', 'orange', 'red', 'purple', 'brown'];
+      let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
+      const levels = mtCase.levels ?? [1, 2, 3, 4, 5, 6];
+      let value = this.getRecordValue(recordList, this.form.monitorType);
+      function getIdx(): number {
+        let v = value ?? 0;
+        for (let i = 0; i < levels.length; i++) if (v <= levels[i]) return i;
+
+        return levels.length - 1;
+      }
+      let colorIdx = getIdx();
+      if (colorIdx >= colors.length) colorIdx = colors.length - 1;
+
+      return colors[colorIdx];
+    },
+    getRecordLine(recordList: RecordList): Array<Position> {
+      let lat = this.getRecordValue(recordList, 'LAT');
+      let lng = this.getRecordValue(recordList, 'LNG');
+      let mtValue = this.getRecordValue(recordList, this.form.monitorType);
+      if (!lat || !lng || !mtValue) return [];
+      const latDiffs = [0.001, 0.002, 0.004, 0.006, 0.008, 0.01];
+      let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
+      const levels = mtCase.levels ?? [1, 2, 3, 4, 5, 6];
+      function getIdx(): number {
+        let v = mtValue ?? 0;
+        for (let i = 0; i < levels.length; i++) if (v <= levels[i]) return i;
+
+        return levels.length - 1;
+      }
+      let diffIdx = getIdx();
+      if (diffIdx >= latDiffs.length) diffIdx = latDiffs.length - 1;
+      let latDiff = latDiffs[diffIdx];
+      return [
+        { lat, lng },
+        { lat: lat + latDiff, lng },
+      ];
+    },
+    getRecordWeight(recordList: RecordList): number {
+      if (this.form.dataType === 'hour') return 3;
+
+      return 1;
+    },
+  },
+});
+</script>
+
+<style></style>

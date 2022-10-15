@@ -7,7 +7,7 @@ import play.api.libs.ws.WSClient
 
 import java.util.Date
 import scala.collection.JavaConverters.asScalaBufferConverter
-import scala.concurrent.duration.{FiniteDuration, HOURS, MINUTES, SECONDS}
+import scala.concurrent.duration.{FiniteDuration, HOURS, MILLISECONDS, MINUTES, SECONDS}
 import scala.util.{Failure, Success}
 
 case class PortConfig(monitor: String, apiKey: String)
@@ -54,7 +54,14 @@ class AisDataCollector(config: AisDataCollectConfig, monitorDB: MonitorDB, aisDB
   import context.dispatcher
   import AisDataCollector._
 
-  val timer = context.system.scheduler.schedule(FiniteDuration(5, SECONDS), FiniteDuration(3, MINUTES), self, CollectData)
+  val timer = {
+    import com.github.nscala_time.time.Imports._
+    val next5 = DateTime.now().withSecondOfMinute(0).withMillisOfSecond(0).plusMinutes(5)
+    val adjust5 = next5.withMinuteOfHour(next5.getMinuteOfHour % 5)
+    val postMillis = new org.joda.time.Duration(DateTime.now, adjust5).getMillis
+    context.system.scheduler.schedule(FiniteDuration(postMillis, MILLISECONDS), FiniteDuration(5, MINUTES), self, CollectData)
+  }
+
 
   val fullTimer = context.system.scheduler.schedule(FiniteDuration(5, SECONDS), FiniteDuration(3, MINUTES), self, CollectFullData)
   config.portConfigs.foreach(port => monitorDB.ensure(port.monitor, Seq.empty[String]))
@@ -79,6 +86,7 @@ class AisDataCollector(config: AisDataCollectConfig, monitorDB: MonitorDB, aisDB
       })
 
     case CollectFullData =>
+      /*
       config.portConfigs.foreach(port => {
         val url = s"https://services.marinetraffic.com/api/exportvessels/${port.apiKey}?v=8&msgtype=full&protocol=jsono"
         val f = WSClient
@@ -95,10 +103,11 @@ class AisDataCollector(config: AisDataCollectConfig, monitorDB: MonitorDB, aisDB
             Logger.error(s"get $url failed", exception)
         }
       })
-
+      */
   }
 
   override def postStop(): Unit = {
     timer.cancel()
+    fullTimer.cancel()
   }
 }

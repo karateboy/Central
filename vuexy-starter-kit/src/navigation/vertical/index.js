@@ -49,6 +49,12 @@ export default [
         action: 'read',
         resource: 'Data',
       },
+      {
+        title: '監測船軌跡',
+        route: 'ship-route-query',
+        action: 'read',
+        resource: 'Data',
+      },
     ],
   },
   {

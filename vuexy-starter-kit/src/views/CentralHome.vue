@@ -63,7 +63,7 @@
 import Vue from 'vue';
 import { mapActions, mapGetters, mapState } from 'vuex';
 import axios from 'axios';
-import { MonitorType, MtRecord, RecordList, RecordListID } from './types';
+import { MonitorType, MtRecord, RecordList, RecordListID, Position } from './types';
 import highcharts from 'highcharts';
 import darkTheme from 'highcharts/themes/dark-unica';
 import useAppConfig from '../@core/app-config/useAppConfig';
@@ -80,10 +80,7 @@ interface AisShip {
   COURSE: string;
   STATUS: string;
   TIMESTAMP: string;
-  position?: {
-    lat: number;
-    lng: number;
-  };
+  position?: Position;
 }
 
 interface ParsedAisData {

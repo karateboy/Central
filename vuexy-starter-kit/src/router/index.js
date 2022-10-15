@@ -165,6 +165,24 @@ const router = new VueRouter({
       },
     },
     {
+      path: '/ship-route-query',
+      name: 'ship-route-query',
+      component: () => import('@/views/ShipRouteQuery.vue'),
+      meta: {
+        pageTitle: '監測船軌跡',
+        breadcrumb: [
+          {
+            text: '數據查詢',
+            active: true,
+          },
+          {
+            text: '監測船軌跡',
+            active: true,
+          },
+        ],
+      },
+    },
+    {
       path: '/report',
       name: 'report',
       component: () => import('@/views/MonitorReportQuery.vue'),

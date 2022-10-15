@@ -117,3 +117,8 @@ export interface RecordList {
   mtDataList: Array<MtRecord>;
   _id: RecordListID;
 }
+
+export interface Position {
+  lat: number;
+  lng: number;
+}

@@ -97,4 +97,14 @@ class AisOp @Inject()(sqlServer: SqlServer) extends AisDB {
          ORDER BY [time] desc
          """.map(mapper).first().apply()
   }
+
+  override def getAisDataList(monitor: String, respType: String, start: Date, end: Date): Future[Seq[AisData]] = Future {
+    implicit val session: DBSession = ReadOnlyAutoSession
+    sql"""
+         SELECT *
+         FROM [dbo].[ais_data]
+         WHERE [monitor] = $monitor and [respType] = $respType and [time] >= $start and [time] < $end
+         ORDER BY [time] desc
+         """.map(mapper).list().apply()
+  }
 }

@@ -20,4 +20,5 @@ trait AisDB {
 
   def insertAisData(aisData: AisData): Future[InsertOneResult]
 
+  def getAisDataList(monitor:String, respType:String, start:Date, end:Date) :Future[Seq[AisData]]
 }
