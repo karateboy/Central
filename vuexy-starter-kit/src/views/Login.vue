@@ -144,52 +144,52 @@ export default {
   mounted() {},
   methods: {
     ...mapMutations(['setLogin']),
-    ...mapMutations('user', ['setUserInfo']),
-    validationForm() {
-      this.$refs.loginValidation.validate().then(success => {
-        if (success) {
-          const cred = { user: this.userEmail, password: this.password };
-          axios
-            .post('/login', cred)
-            .then(res => {
-              const ret = res.data;
-              if (ret.ok) {
-                const userData = ret.userData;
-                const userInfo = userData.user;
-                this.setUserInfo(userInfo);
-                this.setLogin(true);
-                if (userInfo.isAdmin) {
-                  this.$ability.update([
-                    {
-                      action: 'manage',
-                      subject: 'all',
-                    },
-                  ]);
-                } else {
-                  this.$ability.update(userData.group.abilities);
-                }
-                this.$router.push('/');
-              } else {
-                this.$toast({
-                  component: ToastificationContent,
-                  props: {
-                    title: '帳號或密碼錯誤',
-                    icon: 'UserIcon',
-                  },
-                });
-              }
-            })
-            .catch(err => {
-              this.$toast({
-                component: ToastificationContent,
-                props: {
-                  title: '帳號或密碼錯誤',
-                  icon: 'UserIcon',
+    ...mapMutations('user', ['setUserInfo', 'setGroup']),
+    async validationForm() {
+      let success = await this.$refs.loginValidation.validate();
+      if (success) {
+        const cred = { user: this.userEmail, password: this.password };
+        try {
+          let res = await axios.post('/login', cred);
+          const ret = res.data;
+          if (ret.ok) {
+            const userData = ret.userData;
+            const userInfo = userData.user;
+            console.info(userData);
+            this.setUserInfo(userInfo);
+            this.setGroup(userData.group);
+            this.setLogin(true);
+            if (userInfo.isAdmin) {
+              this.$ability.update([
+                {
+                  action: 'manage',
+                  subject: 'all',
                 },
-              });
+              ]);
+            } else {
+              this.$ability.update(userData.group.abilities);
+            }
+            this.$router.push('/');
+          } else {
+            this.$toast({
+              component: ToastificationContent,
+              props: {
+                title: '帳號或密碼錯誤',
+                icon: 'UserIcon',
+              },
             });
+          }
+        } catch (err) {
+          console.error(err);
+          this.$toast({
+            component: ToastificationContent,
+            props: {
+              title: '帳號或密碼錯誤',
+              icon: 'UserIcon',
+            },
+          });
         }
-      });
+      }
     },
   },
 };

@@ -178,6 +178,7 @@ export default Vue.extend({
     ...mapState('monitors', ['monitors']),
     ...mapGetters('monitorTypes', ['mtMap', 'activatedMonitorTypes']),
     ...mapGetters('monitors', ['mMap']),
+    ...mapState('user', ['group']),
     resultTitle(): string {
       return `總共${this.rows.length}筆`;
     },
@@ -193,6 +194,19 @@ export default Vue.extend({
 
     if (this.activatedMonitorTypes.length !== 0)
       this.form.monitorTypes.push(this.activatedMonitorTypes[0]._id);
+
+    if (this.group) {
+      let group = this.group as Group;
+      if (group.delayHour) {
+        this.form.range = [
+          moment()
+            .subtract(1, 'days')
+            .subtract(group.delayHour, 'hours')
+            .valueOf(),
+          moment().subtract(group.delayHour, 'hours').valueOf(),
+        ];
+      }
+    }
   },
   methods: {
     ...mapActions('monitorTypes', ['fetchMonitorTypes']),

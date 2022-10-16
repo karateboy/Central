@@ -61,16 +61,16 @@ class GroupOp @Inject()(mongodb: MongoDB) extends GroupDB {
     waitReadyResult(f)
   }
 
-  override def getGroupByID(_id: String): Option[Group] = {
-    val f = collection.find(equal("_id", _id)).first().toFuture()
+  override def getGroupByIdAsync(_id: String): Future[Option[Group]] = {
+    val f = collection.find(equal("_id", _id)).toFuture()
     f.onFailure {
       errorHandler
     }
-    val group = waitReadyResult(f)
-    if(group != null)
-      Some(group)
-    else
-      None
+    for(ret<-f) yield
+      if(ret.isEmpty)
+        None
+      else
+        Some(ret.head)
   }
 
   override def getAllGroups(): Seq[Group] = {

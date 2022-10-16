@@ -63,7 +63,7 @@
 import Vue from 'vue';
 import { mapActions, mapGetters, mapState } from 'vuex';
 import axios from 'axios';
-import { MonitorType, MtRecord, RecordList, RecordListID, Position } from './types';
+import { MonitorType, MtRecord, RecordList, Position, Group } from './types';
 import highcharts from 'highcharts';
 import darkTheme from 'highcharts/themes/dark-unica';
 import useAppConfig from '../@core/app-config/useAppConfig';
@@ -140,7 +140,7 @@ export default Vue.extend({
     };
   },
   computed: {
-    ...mapState('user', ['userInfo']),
+    ...mapState('user', ['userInfo', 'group']),
     ...mapState('monitors', ['monitors']),
     ...mapState('monitorTypes', ['monitorTypes']),
     ...mapGetters('monitorTypes', ['mtMap']),
@@ -184,7 +184,14 @@ export default Vue.extend({
     ...mapActions('monitors', ['fetchMonitors']),
     ...mapActions('user', ['getUserInfo']),
     async query(mt: string) {
-      const now = new Date().getTime();
+      let now = new Date().getTime();
+      if (this.group) {
+        let group = this.group as Group;
+        if (group.delayHour) {
+          now = now - group.delayHour * 60 * 60 * 1000;
+        }
+      }
+
       const oneHourBefore = now - 60 * 60 * 1000;
       const monitors = this.monitorOfNoEPA.map((m: Monitor) => m._id).join(':');
       const url = `/HistoryTrend/${monitors}/${mt}/Min/normal/${oneHourBefore}/${now}`;

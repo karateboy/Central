@@ -97,5 +97,5 @@ trait RecordDB {
 
   def getLatestMonitorRecordTimeAsync(colName: String)(monitor:String) : Future[Option[DateTime]]
 
-  def getLatestMonitorRecordAsync(colName: String)(monitor:String) : Future[Option[RecordList]]
+  def getLatestMonitorRecordAsync(colName: String)(monitor:String, delayHour: Option[Int]) : Future[Option[RecordList]]
 }

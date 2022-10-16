@@ -273,13 +273,14 @@ class RecordOp @Inject()(sqlServer: SqlServer, calibrationOp: CalibrationOp, mon
     }
   }
 
-  override def getLatestMonitorRecordAsync(colName: String)(monitor: String): Future[Option[RecordList]] = Future {
+  override def getLatestMonitorRecordAsync(colName: String)(monitor: String, hourDelay:Option[Int]): Future[Option[RecordList]] = Future {
     implicit val session: DBSession = ReadOnlyAutoSession
+    val latestTime = DateTime.now().minusHours(hourDelay.getOrElse(0)).toDate
     val tab: SQLSyntax = getTab(colName)
     sql"""
             SELECT TOP 1 *
             FROM $tab
-            WHERE [monitor] = $monitor
+            WHERE [monitor] = $monitor and [time] <= $latestTime
             Order by time desc
            """.map(mapper).first().apply()
   }

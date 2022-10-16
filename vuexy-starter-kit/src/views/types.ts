@@ -19,6 +19,7 @@ export interface Group {
   admin: boolean;
   abilities: Array<Ability>;
   parent: undefined | string;
+  delayHour?: number;
 }
 
 export interface TextStrValue {

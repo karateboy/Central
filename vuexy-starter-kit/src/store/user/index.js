@@ -12,6 +12,7 @@ export default {
       group: '',
       monitorTypeOfInterest: [],
     },
+    group: {},
   },
   getters: {},
   mutations: {
@@ -24,6 +25,9 @@ export default {
     },
     setLogin(state, val) {
       state.login = val;
+    },
+    setGroup(state, val) {
+      state.group = val;
     },
   },
 

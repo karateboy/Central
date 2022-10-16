@@ -80,6 +80,13 @@ class HomeController @Inject()(environment: play.api.Environment,
     Ok(Json.toJson(users))
   }
 
+  def getMyGroup = Security.Authenticated.async {
+    implicit request =>
+      val userInfo = Security.getUserinfo(request).get
+      for(group <- groupOp.getGroupByIdAsync(userInfo.group)) yield
+        Ok(Json.toJson(group))
+  }
+
   def newGroup = Security.Authenticated(BodyParsers.parse.json) {
     implicit request =>
       val newUserParam = request.body.validate[Group]
@@ -111,6 +118,7 @@ class HomeController @Inject()(environment: play.api.Environment,
           BadRequest(Json.obj("ok" -> false, "msg" -> JsError.toJson(error).toString()))
         },
         param => {
+          Logger.info(param.toString)
           val ret = groupOp.updateGroup(param)
           Ok(Json.obj("ok" -> (ret.getMatchedCount != 0)))
         })
@@ -442,22 +450,23 @@ class HomeController @Inject()(environment: play.api.Environment,
     Ok(s"Execute $seq")
   }
 
-  def monitorList = Security.Authenticated {
+  def monitorList = Security.Authenticated.async {
     implicit request =>
       val userInfo = Security.getUserinfo(request).get
-      val group = groupOp.getGroupByID(userInfo.group).get
+      for(groupOp <- groupOp.getGroupByIdAsync(userInfo.group)) yield {
+        val group = groupOp.get
+        implicit val writes = Json.writes[Monitor]
 
-      implicit val writes = Json.writes[Monitor]
+        if (userInfo.isAdmin) {
+          val mList2 = monitorOp.mvList map { m => monitorOp.map(m) }
+          Ok(Json.toJson(mList2.sortBy(_.order)))
+        } else {
+          val mList2 =
+            for (m <- group.monitors if monitorOp.map.contains(m)) yield
+              monitorOp.map(m)
 
-      if (userInfo.isAdmin) {
-        val mList2 = monitorOp.mvList map { m => monitorOp.map(m) }
-        Ok(Json.toJson(mList2.sortBy(_.order)))
-      } else {
-        val mList2 =
-          for (m <- group.monitors if monitorOp.map.contains(m)) yield
-            monitorOp.map(m)
-
-        Ok(Json.toJson(mList2.sortBy(_.order)))
+          Ok(Json.toJson(mList2.sortBy(_.order)))
+        }
       }
   }
 
@@ -494,30 +503,32 @@ class HomeController @Inject()(environment: play.api.Environment,
       BadRequest("Invalid monitor ID")
   }
 
-  def monitorTypeList = Security.Authenticated {
+  def monitorTypeList = Security.Authenticated.async {
     implicit request =>
       val userInfo = Security.getUserinfo(request).get
-      val group = groupOp.getGroupByID(userInfo.group).get
+      for(groupOp <- groupOp.getGroupByIdAsync(userInfo.group)) yield {
+        val group = groupOp.get
+        val mtList = if (userInfo.isAdmin)
+          monitorTypeOp.mtvList map monitorTypeOp.map
+        else
+          monitorTypeOp.mtvList.filter(group.monitorTypes.contains) map monitorTypeOp.map
 
-      val mtList = if (userInfo.isAdmin)
-        monitorTypeOp.mtvList map monitorTypeOp.map
-      else
-        monitorTypeOp.mtvList.filter(group.monitorTypes.contains) map monitorTypeOp.map
-
-      Ok(Json.toJson(mtList.sortBy(_.order)))
+        Ok(Json.toJson(mtList.sortBy(_.order)))
+      }
   }
 
-  def activatedMonitorTypes = Security.Authenticated {
+  def activatedMonitorTypes = Security.Authenticated.async {
     implicit request =>
       val userInfo = Security.getUserinfo(request).get
-      val group = groupOp.getGroupByID(userInfo.group).get
+      for(groupOp <- groupOp.getGroupByIdAsync(userInfo.group)) yield {
+        val group = groupOp.get
+        val mtList = if (userInfo.isAdmin)
+          monitorTypeOp.activeMtvList map monitorTypeOp.map
+        else
+          monitorTypeOp.activeMtvList.filter(group.monitorTypes.contains) map monitorTypeOp.map
 
-      val mtList = if (userInfo.isAdmin)
-        monitorTypeOp.activeMtvList map monitorTypeOp.map
-      else
-        monitorTypeOp.activeMtvList.filter(group.monitorTypes.contains) map monitorTypeOp.map
-
-      Ok(Json.toJson(mtList.sortBy(_.order)))
+        Ok(Json.toJson(mtList.sortBy(_.order)))
+      }
   }
 
   def upsertMonitorType(id: String) = Security.Authenticated.async(BodyParsers.parse.json) {

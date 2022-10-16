@@ -143,6 +143,7 @@ import useAppConfig from '../@core/app-config/useAppConfig';
 import moment from 'moment';
 import axios from 'axios';
 import highcharts from 'highcharts';
+import { Group } from './types';
 
 export default Vue.extend({
   components: {
@@ -153,7 +154,7 @@ export default Vue.extend({
   },
 
   data() {
-    const range = [moment().subtract(1, 'days').valueOf(), moment().valueOf()];
+    let range = [moment().subtract(1, 'days').valueOf(), moment().valueOf()];
     return {
       statusFilters: [
         { id: 'all', txt: '全部' },
@@ -214,6 +215,7 @@ export default Vue.extend({
     };
   },
   computed: {
+    ...mapState('user', ['group']),
     ...mapState('monitorTypes', ['monitorTypes']),
     ...mapGetters('monitorTypes', ['activatedMonitorTypes']),
     ...mapState('monitors', ['monitors']),
@@ -233,6 +235,19 @@ export default Vue.extend({
 
     if (this.monitors.length !== 0) {
       this.form.monitors.push(this.monitors[0]._id);
+    }
+
+    if (this.group) {
+      let group = this.group as Group;
+      if (group.delayHour) {
+        this.form.range = [
+          moment()
+            .subtract(1, 'days')
+            .subtract(group.delayHour, 'hours')
+            .valueOf(),
+          moment().subtract(group.delayHour, 'hours').valueOf(),
+        ];
+      }
     }
   },
   methods: {

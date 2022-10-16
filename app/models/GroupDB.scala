@@ -9,7 +9,8 @@ import scala.concurrent.Future
 
 case class Ability(action:String, subject:String)
 case class Group(_id: String, name: String, monitors:Seq[String], monitorTypes: Seq[String],
-                 admin:Boolean, abilities: Seq[Ability], parent:Option[String] = None)
+                 admin:Boolean, abilities: Seq[Ability], parent:Option[String] = None,
+                 delayHour:Option[Int]=None)
 
 object Group {
   val PLATFORM_ADMIN = "platformAdmin"
@@ -45,7 +46,7 @@ trait GroupDB {
 
   def updateGroup(group: Group): UpdateResult
 
-  def getGroupByID(_id: String): Option[Group]
+  def getGroupByIdAsync(_id: String): Future[Option[Group]]
 
   def getAllGroups(): Seq[Group]
 

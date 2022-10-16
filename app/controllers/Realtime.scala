@@ -15,7 +15,7 @@ import scala.concurrent.Future
 class Realtime @Inject()
 (monitorTypeOp: MonitorTypeDB, dataCollectManagerOp: DataCollectManagerOp, instrumentOp: InstrumentDB,
  monitorStatusOp: MonitorStatusDB, configuration: Configuration, aisDB: AisDB,
- monitorDB: MonitorDB, recordDB: RecordDB) extends Controller {
+ monitorDB: MonitorDB, recordDB: RecordDB, groupDB: GroupDB) extends Controller {
   val overTimeLimit = 6
 
   case class MonitorTypeStatus(_id: String, desp: String, value: String, unit: String, instrument: String, status: String, classStr: Seq[String], order: Int)
@@ -95,39 +95,47 @@ class Realtime @Inject()
   case class LatestAisData(enable: Boolean, aisData: Seq[ParsedAisData])
 
   def getLatestAisData(): Action[AnyContent] = Security.Authenticated.async {
-    implicit val w1 = Json.writes[ParsedAisData]
-    implicit val write = Json.writes[LatestAisData]
-    if(!AisDataCollector.enable)
-      Logger.info(s"AIS Data collection is disabled. History data is returned.")
+    implicit request =>
+      implicit val w1 = Json.writes[ParsedAisData]
+      implicit val write = Json.writes[LatestAisData]
+      val userInfo = request.user
+      val ret =
+        for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
+          val group = groupOpt.get
+          if (!AisDataCollector.enable)
+            Logger.info(s"AIS Data collection is disabled. History data is returned.")
 
-    val monitorsLatestFuture = Future.sequence(monitorDB.mvListOfNoEpa.map(
-      recordDB.getLatestMonitorRecordAsync(recordDB.MinCollection)(_)))
-    val aisFutures = Future.sequence(monitorDB.mvListOfNoEpa.map(m => aisDB.getLatestData(m)))
-    for {
-      monitorLatestData <- monitorsLatestFuture
-      aisData <- aisFutures
-    } yield {
-      val monitorDataMap: Map[String, Map[String, MtRecord]] = monitorLatestData.flatten.map(record => record._id.monitor -> record.mtMap).toMap
-      val parsed = aisData.flatten.map(ais => {
-        val shipList = Json.parse(ais.json).validate[Seq[Map[String, String]]].get
-        val monitorLat = monitorDataMap.get(ais.monitor).flatMap(_.get(MonitorType.LAT).flatMap(_.value))
-        val monitorLng = monitorDataMap.get(ais.monitor).flatMap(_.get(MonitorType.LNG).flatMap(_.value))
-        ParsedAisData(monitor = ais.monitor, time = ais.time, ships = shipList, lat = monitorLat, lng = monitorLng)
-      })
-      Ok(Json.toJson(LatestAisData(true, parsed)))
-    }
+          val monitorsLatestFuture = Future.sequence(monitorDB.mvListOfNoEpa.map(
+            recordDB.getLatestMonitorRecordAsync(recordDB.MinCollection)(_, group.delayHour)))
+          val aisFutures = Future.sequence(monitorDB.mvListOfNoEpa.map(m => aisDB.getLatestData(m)))
+          for {
+            monitorLatestData <- monitorsLatestFuture
+            aisData <- aisFutures
+          } yield {
+            val monitorDataMap: Map[String, Map[String, MtRecord]] = monitorLatestData.flatten.map(record => record._id.monitor -> record.mtMap).toMap
+            val parsed = aisData.flatten.map(ais => {
+              val shipList = Json.parse(ais.json).validate[Seq[Map[String, String]]].get
+              val monitorLat = monitorDataMap.get(ais.monitor).flatMap(_.get(MonitorType.LAT).flatMap(_.value))
+              val monitorLng = monitorDataMap.get(ais.monitor).flatMap(_.get(MonitorType.LNG).flatMap(_.value))
+              ParsedAisData(monitor = ais.monitor, time = ais.time, ships = shipList, lat = monitorLat, lng = monitorLng)
+            })
+            Ok(Json.toJson(LatestAisData(true, parsed)))
+          }
+        }
+      ret.flatMap(x => x)
   }
 
-  case class AisDataResp(columns:Seq[String], ships:Seq[Map[String, String]])
-  def getNearestAisDataInThePast(monitor: String, respType:String, startNum: Long) = Security.Authenticated.async {
+  case class AisDataResp(columns: Seq[String], ships: Seq[Map[String, String]])
+
+  def getNearestAisDataInThePast(monitor: String, respType: String, startNum: Long) = Security.Authenticated.async {
     val start = new DateTime(startNum).toDate
     val f = aisDB.getNearestAisDataInThePast(monitor, respType, start)
     f onFailure errorHandler
-    for(ret<-f) yield {
+    for (ret <- f) yield {
       implicit val w = Json.writes[AisDataResp]
-      if(ret.isEmpty)
-        Ok(Json.toJson(AisDataResp(Seq.empty[String], Seq.empty[Map[String,String]])))
-      else{
+      if (ret.isEmpty)
+        Ok(Json.toJson(AisDataResp(Seq.empty[String], Seq.empty[Map[String, String]])))
+      else {
         val shipList = Json.parse(ret.get.json).validate[Seq[Map[String, String]]].get
         import collection.mutable.Set
         val columnSet = Set.empty[String]
@@ -136,22 +144,30 @@ class Realtime @Inject()
       }
     }
   }
+
   case class LatestMonitorData(monitorTypes: Seq[String], monitorData: Seq[RecordList])
 
   def getLatestMonitorData() = Security.Authenticated.async {
-    implicit val writes = Json.writes[LatestMonitorData]
-    val retListF = Future.sequence(for (monitor <- monitorDB.mvListOfNoEpa) yield
-      recordDB.getLatestMonitorRecordAsync(recordDB.MinCollection)(monitor))
+    implicit request =>
+      val userInfo = request.user
+      val ret =
+        for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
+          implicit val writes = Json.writes[LatestMonitorData]
+          val group = groupOpt.get
+          val retListF = Future.sequence(for (monitor <- monitorDB.mvListOfNoEpa) yield
+            recordDB.getLatestMonitorRecordAsync(recordDB.MinCollection)(monitor, group.delayHour))
 
-    for (retList <- retListF) yield {
-      val monitorRecordList = retList.flatten
-      import scala.collection.mutable.Set
-      val monitorTypeSet = Set.empty[String]
-      monitorRecordList.foreach(recordList =>
-        recordList.mtDataList.foreach(mtRecord =>
-          monitorTypeSet.add(mtRecord.mtName)))
-      val monitorTypes = monitorTypeSet.toList.sortBy(mt => monitorTypeOp.map(mt).order)
-      Ok(Json.toJson(LatestMonitorData(monitorTypes, monitorRecordList)))
-    }
+          for (retList <- retListF) yield {
+            val monitorRecordList = retList.flatten
+            import scala.collection.mutable.Set
+            val monitorTypeSet = Set.empty[String]
+            monitorRecordList.foreach(recordList =>
+              recordList.mtDataList.foreach(mtRecord =>
+                monitorTypeSet.add(mtRecord.mtName)))
+            val monitorTypes = monitorTypeSet.toList.sortBy(mt => monitorTypeOp.map(mt).order)
+            Ok(Json.toJson(LatestMonitorData(monitorTypes, monitorRecordList)))
+          }
+        }
+      ret.flatMap(x => x)
   }
 }

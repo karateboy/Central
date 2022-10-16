@@ -2,6 +2,7 @@ package models.sql
 
 import com.mongodb.client.result.{DeleteResult, UpdateResult}
 import models.{Ability, Group, GroupDB}
+import play.api.Logger
 import play.api.libs.json.Json
 import scalikejdbc._
 
@@ -32,6 +33,7 @@ class GroupOp @Inject()(sqlServer: SqlServer) extends GroupDB {
                   ,[admin] = ${group.admin}
                   ,[abilities] = ${abilities}
                   ,[parent] = ${group.parent}
+                  ,[delayHour] = ${group.delayHour}
               WHERE [id] = ${group._id}
             IF(@@ROWCOUNT = 0)
             BEGIN
@@ -42,7 +44,8 @@ class GroupOp @Inject()(sqlServer: SqlServer) extends GroupDB {
                 ,[monitorTypes]
                 ,[admin]
                 ,[abilities]
-                ,[parent])
+                ,[parent]
+                ,[delayHour])
               VALUES
               (${group._id}
               ,${group.name}
@@ -50,7 +53,8 @@ class GroupOp @Inject()(sqlServer: SqlServer) extends GroupDB {
               ,${monitorTypes}
               ,${group.admin}
               ,${abilities}
-              ,${group.parent})
+              ,${group.parent}
+              ,${group.delayHour})
             END
           """.update().apply()
     UpdateResult.acknowledged(ret, ret, null)
@@ -84,13 +88,13 @@ class GroupOp @Inject()(sqlServer: SqlServer) extends GroupDB {
       monitorTypes = rs.string("monitorTypes").split(",").filter(_.nonEmpty),
       admin = rs.boolean("admin"),
       abilities = abilities,
-      parent = rs.stringOpt("parent")
+      parent = rs.stringOpt("parent"),
+      delayHour = rs.intOpt("delayHour")
     )
   }
 
-  override def addMonitor(_id: String, monitorID: String): Future[UpdateResult] = {
-    Future {
-      val groupOpt: Option[Group] = getGroupByID(_id)
+  override def addMonitor(_id: String, monitorID: String): Future[UpdateResult] =
+    for (groupOpt <- getGroupByIdAsync(_id)) yield {
       for (group <- groupOpt) {
         val updateMonitors = Set(group.monitors + monitorID).toSeq
         val updateGroup = Group(group._id, group.name, updateMonitors, group.monitorTypes,
@@ -99,9 +103,9 @@ class GroupOp @Inject()(sqlServer: SqlServer) extends GroupDB {
       }
       UpdateResult.unacknowledged()
     }
-  }
 
-  override def getGroupByID(_id: String): Option[Group] = {
+
+  override def getGroupByIdAsync(_id: String) = Future {
     implicit val session: DBSession = ReadOnlyAutoSession
     sql"""
           Select *
@@ -121,6 +125,7 @@ class GroupOp @Inject()(sqlServer: SqlServer) extends GroupDB {
 	          [admin] [bit] NOT NULL,
 	          [abilities] [nvarchar](1024) NOT NULL,
 	          [parent] [nvarchar](50) NULL,
+            [delayHour] [int] NULL,
           CONSTRAINT [PK_group] PRIMARY KEY CLUSTERED
           (
 	          [id] ASC
@@ -129,5 +134,13 @@ class GroupOp @Inject()(sqlServer: SqlServer) extends GroupDB {
            """.execute().apply()
       defaultGroup.foreach(upsert)
     }
+
+    if (!sqlServer.getColumnNames(tabName).contains("delayHour")) {
+      sql"""
+              Alter Table [group]
+              Add [delayHour] [int];
+             """.execute().apply()
+    }
   }
+
 }

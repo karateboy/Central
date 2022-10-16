@@ -61,6 +61,20 @@
         >
         </b-form-checkbox-group>
       </b-form-group>
+      <b-form-group
+        label="資料顯示延遲(小時):"
+        label-for="delayHour"
+        label-cols="3"
+      >
+        <b-form-input
+          id="delayHour"
+          v-model.number="group.delayHour"
+          trim
+          :step="1"
+          type="number"
+        >
+        </b-form-input>
+      </b-form-group>
       <b-row>
         <b-col offset-md="3">
           <b-button
@@ -116,6 +130,7 @@ export default Vue.extend({
       monitorTypes: [],
       abilities: [],
       parent: undefined,
+      delayHour: undefined,
     };
 
     const abilityOptions = [
@@ -210,6 +225,7 @@ export default Vue.extend({
         group.monitorTypes = self.monitorTypes;
         group.abilities = self.abilities;
         group.parent = self.parent;
+        group.delayHour = self.delayHour;
       }
     },
     reset() {

@@ -241,9 +241,12 @@ class RecordOp @Inject()(mongodb: MongoDB, monitorTypeOp: MonitorTypeOp, calibra
 
   override def ensureMonitorType(mt: String): Unit = {}
 
-  private def getLatestRecord(colName: String)(monitor: String) = {
+  private def getLatestRecord(colName: String)(monitor: String, latestTime: Date) = {
     val collection = getCollection(colName)
-    val f = collection.find(Filters.equal("_id.monitor", monitor)).sort(Sorts.descending("_id.time")).limit(1).toFuture()
+    val filter = Filters.and(
+      Filters.equal("_id.monitor", monitor),
+      Filters.lt("_id.time", latestTime))
+    val f = collection.find(filter).sort(Sorts.descending("_id.time")).limit(1).toFuture()
     for (ret <- f) yield
       if (ret.isEmpty)
         None
@@ -252,8 +255,8 @@ class RecordOp @Inject()(mongodb: MongoDB, monitorTypeOp: MonitorTypeOp, calibra
   }
 
   override def getLatestMonitorRecordTimeAsync(colName: String)(monitor: String): Future[Option[Imports.DateTime]] =
-    getLatestRecord(colName)(monitor).map(ret=>ret.map(record => new DateTime(record._id.time)))
+    getLatestRecord(colName)(monitor, DateTime.now().toDate).map(ret => ret.map(record => new DateTime(record._id.time)))
 
-  override def getLatestMonitorRecordAsync(colName: String)(monitor: String): Future[Option[RecordList]] =
-    getLatestRecord(colName)(monitor)
+  override def getLatestMonitorRecordAsync(colName: String)(monitor: String, hourDelay: Option[Int]): Future[Option[RecordList]] =
+    getLatestRecord(colName)(monitor, DateTime.now().minusHours(hourDelay.getOrElse(0)).toDate)
 }
