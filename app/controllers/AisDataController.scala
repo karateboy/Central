@@ -9,18 +9,23 @@ import play.api.mvc.Controller
 import javax.inject.Inject
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 class AisDataController @Inject()(aisDB: AisDB, monitorDB: MonitorDB, recordDB: RecordDB, monitorTypeOp: MonitorTypeDB)extends Controller{
 
   case class Position(lat:Double, lng:Double)
   case class ShipData(name:String, route:Seq[Position])
   case class ShipRouteResult(monitorRecords: Seq[RecordList], shipDataList:Seq[ShipData])
-  def getShipRoute(monitor:String, tabTypeStr:String, start:Long, end:Long)= Security.Authenticated.async {
+  def getShipRoute(monitor:String, tabTypeStr:String, ais:Boolean, start:Long, end:Long)= Security.Authenticated.async {
     val tabType = TableType.withName(tabTypeStr)
     val startTime = new DateTime(start)
     val endTime = new DateTime(end)
     val monitorRecordF = recordDB.getRecordListFuture(TableType.mapCollection(tabType))(startTime = startTime, endTime = endTime, Seq(monitor))
     monitorRecordF onFailure errorHandler
-    val aisDataListF = aisDB.getAisDataList(monitor, aisDB.respSimpleType, startTime.toDate, endTime.toDate)
+    val aisDataListF = if(ais)
+      aisDB.getAisDataList(monitor, aisDB.respSimpleType, startTime.toDate, endTime.toDate)
+    else
+      Future.successful(Seq.empty[AisData])
+
     aisDataListF onFailure errorHandler
 
     val shipRouteMap = scala.collection.mutable.Map.empty[String, ListBuffer[Position]]

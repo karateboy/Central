@@ -52,13 +52,21 @@
               label-for="monitorType"
               label-cols-md="3"
             >
-              <v-select
-                id="monitorType"
-                v-model="form.monitorType"
-                label="desp"
-                :reduce="mt => mt._id"
-                :options="activatedMonitorTypes"
-              />
+              <b-row>
+                <b-col
+                  ><v-select
+                    id="monitorType"
+                    v-model="form.monitorType"
+                    label="desp"
+                    :reduce="mt => mt._id"
+                    :options="activatedMonitorTypes"
+                /></b-col>
+                <b-col>
+                  <b-form-checkbox v-model="form.ais"
+                    >是否顯示AIS軌跡</b-form-checkbox
+                  >
+                </b-col>
+              </b-row>
             </b-form-group>
           </b-col>
           <b-col offset-md="3">
@@ -97,13 +105,44 @@
       >
       <div class="map_container">
         <GmapMap
-          ref="map"
+          ref="mapRef"
           :center="mapCenter"
           :zoom="13"
-          map-type-id="hybrid"
+          map-type-id="roadmap"
           class="map_canvas"
           :options="mapOption"
         >
+          <div id="mapLegend" class="mb-2 rounded bg-white border">
+            <b-table-simple small>
+              <b-thead>
+                <b-tr class="text-center"><b-th colspan="2">圖例</b-th></b-tr>
+              </b-thead>
+              <b-tbody>
+                <b-tr>
+                  <b-td :style="{ color: 'red' }" class="bg-light"
+                    ><strong>___</strong></b-td
+                  >
+                  <b-td>監測(海巡)軌跡</b-td>
+                </b-tr>
+                <b-tr>
+                  <b-td :style="{ 'background-color': 'yellow' }"></b-td>
+                  <b-td>{{ getLevelExplain(1) }}</b-td>
+                </b-tr>
+                <b-tr>
+                  <b-td :style="{ 'background-color': 'orange' }"></b-td>
+                  <b-td>{{ getLevelExplain(2) }}</b-td>
+                </b-tr>
+                <b-tr>
+                  <b-td :style="{ 'background-color': 'red' }"></b-td>
+                  <b-td>{{ getLevelExplain(3) }}</b-td>
+                </b-tr>
+                <b-tr>
+                  <b-td :style="{ 'background-color': 'purple' }"></b-td>
+                  <b-td>{{ getLevelExplain(4) }}</b-td>
+                </b-tr>
+              </b-tbody>
+            </b-table-simple>
+          </div>
           <div v-if="mapLoaded">
             <GmapMarker
               v-if="mapLoaded"
@@ -118,24 +157,25 @@
                 v-for="(recordList, idx) in shipRouteResult.monitorRecords"
                 :key="`mtValue${idx}`"
                 :stroke-color="getRecordColor(recordList)"
-                :stroke-weight="getRecordWeight(recordList)"
                 :path="getRecordLine(recordList)"
               />
             </div>
-            <GmapMarker
-              v-for="(ship, idx) in shipRouteResult.shipDataList"
-              :key="`marker${idx + 1}`"
-              :position="ship.route[0]"
-              :clickable="true"
-              :title="ship.name"
-              :icon="shipIcon"
-            />
-            <GmapPolyline
-              v-for="(ship, idx) in shipRouteResult.shipDataList"
-              :key="`route${idx}`"
-              stroke-color="blue"
-              :path="ship.route"
-            />
+            <div v-if="form.ais">
+              <GmapMarker
+                v-for="(ship, idx) in shipRouteResult.shipDataList"
+                :key="`marker${idx + 1}`"
+                :position="ship.route[0]"
+                :clickable="true"
+                :title="ship.name"
+                :icon="shipIcon"
+              />
+              <GmapPolyline
+                v-for="(ship, idx) in shipRouteResult.shipDataList"
+                :key="`route${idx}`"
+                stroke-color="blue"
+                :path="ship.route"
+              />
+            </div>
           </div>
         </GmapMap>
       </div>
@@ -144,6 +184,12 @@
 </template>
 <style lang="scss">
 @import '@core/scss/vue/libs/vue-select.scss';
+</style>
+<style scoped>
+.legend {
+  /* min-width: 100px;*/
+  background-color: sliver;
+}
 </style>
 <script lang="ts">
 import Vue from 'vue';
@@ -157,13 +203,7 @@ import { Monitor } from '../store/monitors/types';
 import moment from 'moment';
 import axios from 'axios';
 import { faShip, faFerry } from '@fortawesome/free-solid-svg-icons';
-import {
-  MonitorType,
-  MtRecord,
-  RecordList,
-  RecordListID,
-  Position,
-} from './types';
+import { MonitorType, RecordList, Position } from './types';
 
 interface ShipData {
   name: string;
@@ -194,7 +234,7 @@ export default Vue.extend({
       zoomControl: true,
       mapTypeControl: true,
       scaleControl: true,
-      streetViewControl: true,
+      streetViewControl: false,
       rotateControl: true,
       fullscreenControl: true,
     };
@@ -208,6 +248,7 @@ export default Vue.extend({
         monitorType: '',
         dataType: 'hour',
         range,
+        ais: false,
       },
       dataTypes,
       shipRouteResult,
@@ -311,6 +352,13 @@ export default Vue.extend({
 
     this.$gmapApiPromiseLazy().then(() => {
       this.mapLoaded = true;
+      const mapLegend = document.getElementById('mapLegend');
+      let ref = this.$refs.mapRef as any;
+      if (mapLegend !== null) {
+        ref.$mapPromise.then((map: google.maps.Map) => {
+          map.controls[google.maps.ControlPosition.BOTTOM_LEFT].push(mapLegend);
+        });
+      }
     });
 
     if (this.activatedMonitorTypes.length !== 0)
@@ -321,7 +369,7 @@ export default Vue.extend({
     ...mapActions('monitorTypes', ['fetchMonitorTypes']),
     ...mapMutations(['setLoading']),
     async query() {
-      const url = `/ShipRoute/${this.form.monitor}/${this.form.dataType}/${this.form.range[0]}/${this.form.range[1]}`;
+      const url = `/ShipRoute/${this.form.monitor}/${this.form.dataType}/${this.form.ais}/${this.form.range[0]}/${this.form.range[1]}`;
 
       try {
         this.setLoading({ loading: true });
@@ -357,18 +405,18 @@ export default Vue.extend({
       );
       return mtRecord?.value;
     },
-    getRecordColor(recordList: RecordList): string {
-      const colors = ['green', 'yellow', 'orange', 'red', 'purple', 'brown'];
+    getLevelIndex(recordList: RecordList): number {
       let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
-      const levels = mtCase.levels ?? [1, 2, 3, 4, 5, 6];
       let value = this.getRecordValue(recordList, this.form.monitorType);
-      function getIdx(): number {
-        let v = value ?? 0;
-        for (let i = 0; i < levels.length; i++) if (v <= levels[i]) return i;
+      const levels = mtCase.levels ?? [1, 2, 3, 4, 5];
+      let v = value ?? 0;
+      for (let i = 0; i < levels.length; i++) if (v <= levels[i]) return i;
 
-        return levels.length - 1;
-      }
-      let colorIdx = getIdx();
+      return levels.length - 1;
+    },
+    getRecordColor(recordList: RecordList): string {
+      const colors = ['green', 'yellow', 'orange', 'red', 'purple'];
+      let colorIdx = this.getLevelIndex(recordList);
       if (colorIdx >= colors.length) colorIdx = colors.length - 1;
 
       return colors[colorIdx];
@@ -376,18 +424,11 @@ export default Vue.extend({
     getRecordLine(recordList: RecordList): Array<Position> {
       let lat = this.getRecordValue(recordList, 'LAT');
       let lng = this.getRecordValue(recordList, 'LNG');
-      let mtValue = this.getRecordValue(recordList, this.form.monitorType);
-      if (!lat || !lng || !mtValue) return [];
-      const latDiffs = [0.001, 0.002, 0.004, 0.006, 0.008, 0.01];
-      let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
-      const levels = mtCase.levels ?? [1, 2, 3, 4, 5, 6];
-      function getIdx(): number {
-        let v = mtValue ?? 0;
-        for (let i = 0; i < levels.length; i++) if (v <= levels[i]) return i;
+      if (lat === undefined || lng === undefined) return [];
 
-        return levels.length - 1;
-      }
-      let diffIdx = getIdx();
+      const latDiffs = [0, 0.001, 0.0015, 0.00225, 0.003375];
+
+      let diffIdx = this.getLevelIndex(recordList);
       if (diffIdx >= latDiffs.length) diffIdx = latDiffs.length - 1;
       let latDiff = latDiffs[diffIdx];
       return [
@@ -399,6 +440,25 @@ export default Vue.extend({
       if (this.form.dataType === 'hour') return 3;
 
       return 1;
+    },
+    getRecordOption(recordList: RecordList): object {
+      return {
+        strokeWeight: this.getLevelIndex(recordList),
+      };
+    },
+    getLevelExplain(idx: number): string {
+      if (!this.form.monitorType) return '';
+
+      let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
+      const levels = mtCase.levels ?? [1, 2, 3, 4, 5];
+      if (idx >= 1 && idx <= levels.length - 1)
+        return `${mtCase.desp}濃度${levels[idx - 1].toFixed(
+          mtCase.prec,
+        )} < ${levels[idx].toFixed(mtCase.prec)}${mtCase.unit}`;
+
+      return `${mtCase.desp}濃度 > ${levels[levels.length - 1].toFixed(
+        mtCase.prec,
+      )}${mtCase.unit}`;
     },
   },
 });

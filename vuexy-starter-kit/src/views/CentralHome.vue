@@ -24,7 +24,7 @@
             ref="map"
             :center="getMapCenter(aisData.monitor, aisData)"
             :zoom="13"
-            map-type-id="hybrid"
+            map-type-id="roadmap"
             class="map_canvas"
             :options="mapOption"
           >
