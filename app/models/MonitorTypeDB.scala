@@ -72,7 +72,7 @@ trait MonitorTypeDB {
     MonitorType.WIN_DIRECTION -> "11",
     MonitorType.WIN_SPEED -> "10")
 
-  val epaToMtMap: Map[Int, String] = mtToEpaMtMap.map(pair=>pair._2.toInt->pair._1)
+  val epaToMtMap: Map[Int, String] = mtToEpaMtMap.map(pair => pair._2.toInt -> pair._1)
   val epaMonitorTypes = mtToEpaMtMap.keys.toList
 
   var mtvList = List.empty[String]
@@ -156,7 +156,7 @@ trait MonitorTypeDB {
     }
   }
 
-  def rangeType(_id: String, desp: String, unit: String, prec: Int, accumulated:Boolean = false): MonitorType = {
+  def rangeType(_id: String, desp: String, unit: String, prec: Int, accumulated: Boolean = false): MonitorType = {
     rangeOrder += 1
     MonitorType(_id, desp, unit, prec, rangeOrder, accumulated = Some(accumulated))
   }
@@ -176,7 +176,7 @@ trait MonitorTypeDB {
     }
   }
 
-  def deleteItemFuture(_id:String):Unit
+  def deleteItemFuture(_id: String): Unit
 
   def allMtvList: List[String] = mtvList ++ signalMtvList
 
@@ -197,7 +197,7 @@ trait MonitorTypeDB {
     }
   }
 
-  def upsertMonitorType(mt:MonitorType): Future[UpdateResult] = {
+  def upsertMonitorType(mt: MonitorType): Future[UpdateResult] = {
     synchronized {
       map = map + (mt._id -> mt)
       if (mt.signalType) {
@@ -217,13 +217,13 @@ trait MonitorTypeDB {
   def stopMeasuring(instrumentId: String): Future[Seq[UpdateResult]] = {
     val mtSet = realtimeMtvList.toSet ++ signalMtvList.toSet
     val allF: Seq[Future[UpdateResult]] =
-    for{mt<-mtSet.toSeq
-        instrumentList <- map(mt).measuringBy if instrumentList.contains(instrumentId)
-        } yield {
-      val newMt = map(mt).stopMeasuring(instrumentId)
-      map = map + (mt -> newMt)
-      upsertItemFuture(newMt)
-    }
+      for {mt <- mtSet.toSeq
+           instrumentList <- map(mt).measuringBy if instrumentList.contains(instrumentId)
+           } yield {
+        val newMt = map(mt).stopMeasuring(instrumentId)
+        map = map + (mt -> newMt)
+        upsertItemFuture(newMt)
+      }
     Future.sequence(allF)
   }
 
@@ -276,4 +276,75 @@ trait MonitorTypeDB {
           false
     (overLaw.getOrElse(false), overLaw.getOrElse(false))
   }
+
+  type MtCalculator = (Seq[RecordList], Integer) => Unit
+
+  def directionCalculator: MtCalculator = (recordLists, pos) => {
+    val neededMonitorTypes = Seq(MonitorType.LAT, MonitorType.LNG)
+    val currentRecordList = recordLists(pos)
+
+    def checkTypes: Boolean = {
+      (pos >= 1 && pos < recordLists.length) &&
+        recordLists.drop(pos - 1).take(2).forall(recordList => {
+          val mtMap = recordList.mtMap
+          neededMonitorTypes.forall(mt =>
+            mtMap.contains(mt) &&
+              mtMap(mt).status == MonitorStatus.NormalStat &&
+              mtMap(mt).value.isDefined)
+        })
+    }
+
+    val newMtRecord =
+      if (!checkTypes)
+        MtRecord(MonitorType.DIRECTION, None, MonitorStatus.NormalStat)
+      else {
+        val lastMtMap = recordLists(pos - 1).mtMap
+        val mtMap = recordLists(pos).mtMap
+        val lat1 = lastMtMap(MonitorType.LAT).value.get
+        val lng1 = lastMtMap(MonitorType.LNG).value.get
+        val lat2 = mtMap(MonitorType.LAT).value.get
+        val lng2 = mtMap(MonitorType.LNG).value.get
+        val dy = lat2 - lat1
+        val dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1)
+        val degree = Math.toDegrees(Math.atan2(dy, dx))
+
+        if (degree >= 0)
+          MtRecord(MonitorType.DIRECTION, Some(degree), MonitorStatus.NormalStat)
+        else
+          MtRecord(MonitorType.DIRECTION, Some(degree + 360), MonitorStatus.NormalStat)
+      }
+    currentRecordList.mtDataList = currentRecordList.mtDataList :+ newMtRecord
+  }
+
+
+  def winDirectionOffsetCalculator: MtCalculator = (recordLists, pos) => {
+    val neededMonitorTypes = Seq(MonitorType.DIRECTION, MonitorType.WIN_DIRECTION)
+    val currentRecordList = recordLists(pos)
+    val mtMap = currentRecordList.mtMap
+
+    def checkTypes: Boolean =
+      neededMonitorTypes.forall(mt =>
+        mtMap.contains(mt) &&
+          mtMap(mt).status == MonitorStatus.NormalStat &&
+          mtMap(mt).value.isDefined)
+
+    val newMtRecord =
+      if (!checkTypes)
+        MtRecord(MonitorType.WIND_DIRECTION_OFFSET, None, MonitorStatus.NormalStat)
+      else {
+        val value =
+          for(windDir<-mtMap(MonitorType.WIN_DIRECTION).value;dir<-mtMap(MonitorType.DIRECTION).value) yield
+            Math.abs(dir - windDir)
+
+        MtRecord(MonitorType.WIND_DIRECTION_OFFSET, value, MonitorStatus.NormalStat)
+      }
+
+    currentRecordList.mtDataList = currentRecordList.mtDataList :+ newMtRecord
+  }
+
+  val calculatedTypeMap: Map[String, MtCalculator] = Map(
+    MonitorType.DIRECTION -> directionCalculator,
+    MonitorType.WIND_DIRECTION_OFFSET -> winDirectionOffsetCalculator
+  )
+
 }

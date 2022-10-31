@@ -417,9 +417,8 @@ export default Vue.extend({
     getRecordColor(recordList: RecordList): string {
       const colors = ['green', 'yellow', 'orange', 'red', 'purple'];
       let colorIdx = this.getLevelIndex(recordList);
-      if (colorIdx >= colors.length) colorIdx = colors.length - 1;
 
-      return colors[colorIdx];
+      return colors[Math.min(colors.length - 1, colorIdx)];
     },
     getRecordLine(recordList: RecordList): Array<Position> {
       let lat = this.getRecordValue(recordList, 'LAT');
@@ -429,8 +428,7 @@ export default Vue.extend({
       const latDiffs = [0, 0.001, 0.0015, 0.00225, 0.003375];
 
       let diffIdx = this.getLevelIndex(recordList);
-      if (diffIdx >= latDiffs.length) diffIdx = latDiffs.length - 1;
-      let latDiff = latDiffs[diffIdx];
+      let latDiff = latDiffs[Math.min(latDiffs.length - 1, diffIdx)];
       return [
         { lat, lng },
         { lat: lat + latDiff, lng },

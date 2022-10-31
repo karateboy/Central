@@ -2,6 +2,7 @@ package models
 
 case class ThresholdConfig(elapseTime: Int)
 
+
 case class MonitorType(_id: String,
                        desp: String,
                        unit: String,
@@ -21,7 +22,8 @@ case class MonitorType(_id: String,
                        fixedM: Option[Double] = None,
                        fixedB: Option[Double] = None,
                        overLawSignalType: Option[String] = None,
-                       std_law_low: Option[Double] = None) {
+                       std_law_low: Option[Double] = None,
+                       calculated: Option[Boolean] = None) {
 
   def addMeasuring(instrumentId: String, append: Boolean) = {
     if (measuringBy.isEmpty)
@@ -94,5 +96,9 @@ object MonitorType {
   var rangeOrder = 0
   var signalOrder = 1000
 
+  val TRUE_WIND_SPEED = "TRUE_WIND_SPEED"
+  val TRUE_WIND_DIR = "TRUE_WIND_DIR"
+  val DIRECTION = "DIRECTION"
+  val WIND_DIRECTION_OFFSET = "WIND_DIRECTION_OFFSET"
 }
 
