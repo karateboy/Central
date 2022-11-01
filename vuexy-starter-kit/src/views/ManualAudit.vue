@@ -12,6 +12,7 @@
                   label="desc"
                   :reduce="m => m._id"
                   :options="monitorOfNoEPA"
+                  :close-on-select="false"
                   multiple
                 />
               </span>
@@ -29,6 +30,7 @@
                 label="desp"
                 :reduce="mt => mt._id"
                 :options="monitorTypes"
+                :close-on-select="false"
                 multiple
               />
             </b-form-group>

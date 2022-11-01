@@ -51,7 +51,7 @@ object VocReader {
         val m = Monitor(_id = config.id, desc = config.name, order = Monitor.getOrder(),
           monitorTypes = monitorTypeOp.activeMtvList,
           lat = Some(config.lat), lng = Some(config.lng))
-        monitorOp.upsert(m)
+        monitorOp.upserMonitor(m)
       })
       count = count + 1
       actorSystem.actorOf(props(config, monitorTypeOp, recordOp, dataCollectManager), s"vocReader${count}")

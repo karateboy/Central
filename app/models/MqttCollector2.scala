@@ -271,7 +271,7 @@ class MqttCollector2 @Inject()(monitorDB: MonitorDB,alarmOp: AlarmDB,
             // context.parent ! ToggleTargetDO(config.eventConfig.instId, config.eventConfig.bit, thresholdConfig.elapseTime)
           }
         }else{
-          monitorDB.upsert(Monitor(message.id, message.id, Monitor.getOrder(), monitorTypeDB.activeMtvList,
+          monitorDB.upserMonitor(Monitor(message.id, message.id, Monitor.getOrder(), monitorTypeDB.activeMtvList,
             Some(message.lat), Some(message.lon)))
           val sensor = Sensor(id = message.id, topic = topic, monitor = message.id, group = config.group)
           mqttSensorOp.upsert(sensor).andThen({

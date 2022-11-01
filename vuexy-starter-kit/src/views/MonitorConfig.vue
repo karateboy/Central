@@ -1,86 +1,84 @@
 <template>
-  <div>
-    <b-card title="測點管理" class="text-center">
-      <b-row>
-        <b-col class="d-flex justify-content-around p-1">
-          <b-button variant="gradient-success" @click="addMonitor()"
-            >新增</b-button
-          >
-          <b-button
-            variant="gradient-danger"
-            :disabled="!Boolean(selected)"
-            @click="deleteMonitor()"
-            >刪除</b-button
-          >
-          <b-button
-            v-ripple.400="'rgba(255, 255, 255, 0.15)'"
-            variant="primary"
-            @click="save"
-          >
-            儲存
-          </b-button>
-        </b-col>
-      </b-row>
-      <b-table
-        responsive
-        :fields="columns"
-        :items="editMonitors"
-        bordered
-        sticky-header
-        select-mode="single"
-        style="min-height: 750px"
-        selectable
-        @row-selected="onInstSelected"
-      >
-        <template #cell(selected)="{ rowSelected }">
-          <template v-if="rowSelected">
-            <span aria-hidden="true">&check;</span>
-            <span class="sr-only">Selected</span>
-          </template>
-          <template v-else>
-            <span aria-hidden="true">&nbsp;</span>
-            <span class="sr-only">Not selected</span>
-          </template>
+  <b-card title="測點管理" class="text-center" no-body>
+    <b-row>
+      <b-col class="d-flex justify-content-around p-1">
+        <b-button variant="gradient-success" @click="addMonitor()"
+          >新增</b-button
+        >
+        <b-button
+          variant="gradient-danger"
+          :disabled="!Boolean(selected)"
+          @click="deleteMonitor()"
+          >刪除</b-button
+        >
+        <b-button
+          v-ripple.400="'rgba(255, 255, 255, 0.15)'"
+          variant="primary"
+          @click="save"
+        >
+          儲存
+        </b-button>
+      </b-col>
+    </b-row>
+    <b-table
+      :fields="columns"
+      :items="editMonitors"
+      bordered
+      sticky-header
+      select-mode="single"
+      style="max-height: 700px"
+      selectable
+      @row-selected="onInstSelected"
+    >
+      <template #cell(selected)="{ rowSelected }">
+        <template v-if="rowSelected">
+          <span aria-hidden="true">&check;</span>
+          <span class="sr-only">Selected</span>
         </template>
-        <template #cell(_id)="row">
-          <b-alert show>變更測站ID, 會重新記錄測量資料!</b-alert>
-          <b-form-input v-model="row.item._id" />
+        <template v-else>
+          <span aria-hidden="true">&nbsp;</span>
+          <span class="sr-only">Not selected</span>
         </template>
-        <template #cell(order)="row">
-          <b-form-input
-            v-model.number="row.item.order"
-            @change="markDirty(row.item)"
-          />
-        </template>
-        <template #cell(desc)="row">
-          <b-form-input v-model="row.item.desc" @change="markDirty(row.item)" />
-        </template>
-        <template #cell(lat)="row">
-          <b-form-input
-            v-model.number="row.item.lat"
-            @change="markDirty(row.item)"
-          />
-        </template>
-        <template #cell(lng)="row">
-          <b-form-input
-            v-model.number="row.item.lng"
-            @change="markDirty(row.item)"
-          />
-        </template>
-        <template #cell(monitorTypes)="row">
-          <v-select
-            id="monitorType"
-            v-model="row.item.monitorTypes"
-            label="desp"
-            :reduce="mt => mt._id"
-            :options="monitorTypes"
-            multiple
-            @input="markDirty(row.item)"
-          />
-        </template>
-      </b-table>
-    </b-card>
-  </div>
+      </template>
+      <template #cell(_id)="row">
+        <b-alert show>變更測站ID, 會重新記錄測量資料!</b-alert>
+        <b-form-input v-model="row.item._id" />
+      </template>
+      <template #cell(order)="row">
+        <b-form-input
+          v-model.number="row.item.order"
+          @change="markDirty(row.item)"
+        />
+      </template>
+      <template #cell(desc)="row">
+        <b-form-input v-model="row.item.desc" @change="markDirty(row.item)" />
+      </template>
+      <template #cell(lat)="row">
+        <b-form-input
+          v-model.number="row.item.lat"
+          @change="markDirty(row.item)"
+        />
+      </template>
+      <template #cell(lng)="row">
+        <b-form-input
+          v-model.number="row.item.lng"
+          @change="markDirty(row.item)"
+        />
+      </template>
+      <template #cell(monitorTypes)="row">
+        <v-select
+          id="monitorType"
+          v-model="row.item.monitorTypes"
+          label="desp"
+          :reduce="mt => mt._id"
+          :options="monitorTypes"
+          :close-on-select="false"
+          multiple
+          @input="markDirty(row.item)"
+        />
+      </template>
+    </b-table>
+  </b-card>
 </template>
 <script lang="ts">
 import Vue from 'vue';

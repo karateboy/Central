@@ -5,6 +5,7 @@ import play.api.libs.json.Json
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+
 trait MonitorDB {
 
   implicit val mWrite = Json.writes[Monitor]
@@ -16,8 +17,8 @@ trait MonitorDB {
 
   def mvListOfNoEpa: Seq[String] = synchronized(map.values.filter(_.epaId.isEmpty).toList.sortBy(_.order).map(_._id))
 
-  def ensure(_id: String, monitorTypes:Seq[String]): Unit = {
-    synchronized{
+  def ensure(_id: String, monitorTypes: Seq[String]): Unit = {
+    synchronized {
       if (!map.contains(_id)) {
         val monitor = Monitor(_id, _id, Monitor.getOrder(), monitorTypes)
         upsert(monitor)
@@ -25,21 +26,28 @@ trait MonitorDB {
     }
   }
 
-  def ensure(m:Monitor):Unit = {
-    synchronized{
+  def ensure(m: Monitor): Unit = {
+    synchronized {
       if (!map.contains(m._id))
         upsert(m)
     }
   }
 
 
+  protected def upsert(m: Monitor): Unit
 
-  def upsert(m: Monitor): Unit
+  def upserMonitor(m: Monitor): Unit = {
+    synchronized {
+      map = map + (m._id -> m)
+    }
+
+    upsert(m)
+  }
 
   protected def deleteMonitor(_id: String): Future[DeleteResult]
 
-  def delete(_id:String, sysConfigDB: SysConfigDB) : Future[DeleteResult] = {
-    for(ret<- deleteMonitor(_id)) yield {
+  def delete(_id: String, sysConfigDB: SysConfigDB): Future[DeleteResult] = {
+    for (ret <- deleteMonitor(_id)) yield {
       refresh(sysConfigDB)
       ret
     }
@@ -53,10 +61,10 @@ trait MonitorDB {
         m._id -> m
       }
 
-    for(activeId <- sysConfigDB.getActiveMonitorId())
+    for (activeId <- sysConfigDB.getActiveMonitorId())
       Monitor.setActiveMonitorId(activeId)
 
-    synchronized{
+    synchronized {
       map = pairs.toMap
     }
   }

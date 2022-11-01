@@ -11,6 +11,7 @@
                 label="desc"
                 :reduce="mt => mt._id"
                 :options="monitors"
+                :close-on-select="false"
                 multiple
               />
             </b-form-group>
@@ -27,6 +28,7 @@
                 label="desp"
                 :reduce="mt => mt._id"
                 :options="activatedMonitorTypes"
+                :close-on-select="false"
                 multiple
               />
             </b-form-group>
@@ -61,6 +63,27 @@
                 value-type="timestamp"
                 :show-second="false"
               />
+              <b-button
+                variant="gradient-primary"
+                class="ml-1"
+                size="md"
+                @click="setToday"
+                >今天</b-button
+              >
+              <b-button
+                variant="gradient-primary"
+                class="ml-1"
+                size="md"
+                @click="setLast2Days"
+                >前兩天</b-button
+              >
+              <b-button
+                variant="gradient-primary"
+                class="ml-1"
+                size="md"
+                @click="set3DayBefore"
+                >前三天</b-button
+              >
             </b-form-group>
           </b-col>
           <!-- submit and reset -->
@@ -212,6 +235,23 @@ export default Vue.extend({
     ...mapActions('monitorTypes', ['fetchMonitorTypes']),
     ...mapActions('monitors', ['fetchMonitors']),
     ...mapMutations(['setLoading']),
+    setToday() {
+      this.form.range = [moment().startOf('day').valueOf(), moment().valueOf()];
+    },
+    setLast2Days() {
+      const last2days = moment().subtract(2, 'day');
+      this.form.range = [
+        last2days.startOf('day').valueOf(),
+        moment().valueOf(),
+      ];
+    },
+    set3DayBefore() {
+      const threeDayBefore = moment().subtract(3, 'day');
+      this.form.range = [
+        threeDayBefore.startOf('day').valueOf(),
+        moment().valueOf(),
+      ];
+    },
     async query() {
       this.setLoading({ loading: true });
       this.display = true;

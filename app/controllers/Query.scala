@@ -220,7 +220,7 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
 
         if (outputType == OutputType.excel) {
           import java.nio.file.Files
-          val exportMonitorTypes = List.fill(3)(monitorTypes).flatten
+          val exportMonitorTypes = List.fill(monitors.length)(monitorTypes).flatten
           val excelFile = excelUtility.exportChartData(chart, exportMonitorTypes.toArray, true)
           val downloadFileName =
             if (chart.downloadFileName.isDefined)
@@ -526,6 +526,7 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
     def getSeriesFuture() = {
       val seqFuture = monitors.map(m => {
         for (records <- recordOp.getRecordListFuture(TableType.mapCollection(tabType))(start, end, Seq(m))) yield {
+          monitorTypeOp.appendCalculatedMtRecord(records, monitorTypes)
           val data = records.flatMap(rec => {
             for {mt1 <- rec.mtMap.get(monitorTypes(0)) if MonitorStatusFilter.isMatched(statusFilter, mt1.status)
                  mt2 <- rec.mtMap.get(monitorTypes(1)) if MonitorStatusFilter.isMatched(statusFilter, mt2.status)

@@ -87,13 +87,16 @@ class MonitorOp @Inject()(sqlServer: SqlServer, sysConfig: SysConfig, monitorTyp
 
   override def upsert(m: Monitor): Unit = {
     implicit val session: DBSession = AutoSession
-    map = map + (m._id -> m)
+
+    val mtStr = m.monitorTypes.mkString(",")
     sql"""
           UPDATE [dbo].[monitor]
             SET [name] = ${m.desc}
                 ,[lat] = ${m.lat}
                 ,[lng] = ${m.lng}
                 ,[epaId] = ${m.epaId}
+                ,[order] = ${m.order}
+                ,[monitorTypes] = $mtStr
                 Where [id] = ${m._id}
             IF(@@ROWCOUNT = 0)
             BEGIN
@@ -102,13 +105,17 @@ class MonitorOp @Inject()(sqlServer: SqlServer, sysConfig: SysConfig, monitorTyp
                 ,[name]
                 ,[lat]
                 ,[lng]
-                ,[epaId])
+                ,[epaId]
+                ,[order]
+                ,[monitorTypes])
               VALUES
               (${m._id}
               ,${m.desc}
               ,${m.lat}
               ,${m.lng}
-              ,${m.epaId})
+              ,${m.epaId}
+              ,${m.order}
+              ,$mtStr)
             END
          """.update().apply()
   }

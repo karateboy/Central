@@ -12,6 +12,7 @@
                   label="desc"
                   :reduce="mt => mt._id"
                   :options="monitorOfNoEPA"
+                  :close-on-select="false"
                   multiple
                 />
               </span>
