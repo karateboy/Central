@@ -574,10 +574,12 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
 
         val resultFuture = recordOp.getRecordListFuture(TableType.mapCollection(tabType))(start, end, monitors)
         val emptyCell = CellData("-", Seq.empty[String])
-        for (recordList <- resultFuture) yield {
+        for (recordLists <- resultFuture) yield {
           import scala.collection.mutable.Map
+          monitorTypeOp.appendCalculatedMtRecord(recordLists, monitorTypes)
+
           val timeMtMonitorMap = Map.empty[DateTime, Map[String, Map[String, CellData]]]
-          recordList foreach {
+          recordLists foreach {
             r =>
               val stripedTime = new DateTime(r._id.time).withSecondOfMinute(0).withMillisOfSecond(0)
               val mtMonitorMap = timeMtMonitorMap.getOrElseUpdate(stripedTime, Map.empty[String, Map[String, CellData]])

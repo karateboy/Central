@@ -60,6 +60,7 @@ class MonitorTypeOp @Inject()(mongodb: MongoDB, alarmDB: AlarmDB) extends Monito
       updateMt()
     }
     refreshMtv
+    ensureCalculatedMonitorTypes()
   }
 
   override def getList(): List[MonitorType] = {

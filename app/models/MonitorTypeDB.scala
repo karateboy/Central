@@ -161,6 +161,11 @@ trait MonitorTypeDB {
     MonitorType(_id, desp, unit, prec, rangeOrder, accumulated = Some(accumulated))
   }
 
+  def calculatedType(_id: String, desp: String, unit: String, prec: Int): MonitorType = {
+    rangeOrder += 1
+    MonitorType(_id, desp, unit, prec, rangeOrder, calculated = Some(true))
+  }
+
   def deleteMonitorType(_id: String) = {
     synchronized {
       if (map.contains(_id)) {
@@ -306,7 +311,11 @@ trait MonitorTypeDB {
         val lng2 = mtMap(MonitorType.LNG).value.get
         val dy = lat2 - lat1
         val dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1)
-        val degree = Math.toDegrees(Math.atan2(dy, dx))
+
+        val degree = if (Math.abs(dx) <= 0.0001 && Math.abs(dy) <= 0.0001)
+          0.0d
+        else
+          Math.toDegrees(Math.atan2(dy, dx))
 
         if (degree >= 0)
           MtRecord(MonitorType.DIRECTION, Some(degree), MonitorStatus.NormalStat)
@@ -333,18 +342,46 @@ trait MonitorTypeDB {
         MtRecord(MonitorType.WIND_DIRECTION_OFFSET, None, MonitorStatus.NormalStat)
       else {
         val value =
-          for(windDir<-mtMap(MonitorType.WIN_DIRECTION).value;dir<-mtMap(MonitorType.DIRECTION).value) yield
-            Math.abs(dir - windDir)
+          for (windDir <- mtMap(MonitorType.WIN_DIRECTION).value; dir <- mtMap(MonitorType.DIRECTION).value) yield
+            Math.abs(Math.toDegrees(Math.toRadians(dir - windDir)))
 
-        MtRecord(MonitorType.WIND_DIRECTION_OFFSET, value, MonitorStatus.NormalStat)
+        val adjust = value map(v=>{
+          if(v <= 180)
+            v
+          else
+            360 - v
+        })
+        MtRecord(MonitorType.WIND_DIRECTION_OFFSET, adjust, MonitorStatus.NormalStat)
       }
 
     currentRecordList.mtDataList = currentRecordList.mtDataList :+ newMtRecord
   }
 
-  val calculatedTypeMap: Map[String, MtCalculator] = Map(
+  val calculatedMonitorTypes = Seq(
+    calculatedType(MonitorType.DIRECTION, "航向", "度", 2),
+    calculatedType(MonitorType.WIND_DIRECTION_OFFSET, "相對風向與航向夾角", "度", 2)
+  )
+
+  val monitorTypeCalculatorMap: Map[String, MtCalculator] = Map(
     MonitorType.DIRECTION -> directionCalculator,
     MonitorType.WIND_DIRECTION_OFFSET -> winDirectionOffsetCalculator
   )
 
+  def ensureCalculatedMonitorTypes(): Unit = {
+    calculatedMonitorTypes.filter(mt => {
+      !map.contains(mt._id)
+    }).foreach(ensure)
+  }
+
+  def appendCalculatedMtRecord(recordLists:Seq[RecordList], mtList:Seq[String]): Unit = {
+    if (mtList.find(monitorTypeCalculatorMap.contains).nonEmpty) {
+      for {pos <- scala.collection.immutable.Range(0, recordLists.length)
+           mtCase <- calculatedMonitorTypes
+           calculator = monitorTypeCalculatorMap(mtCase._id)} {
+        val recordList = recordLists(pos)
+        if(recordList.mtDataList.find(mtRecord=>mtRecord.mtName == mtCase._id).isEmpty)
+          calculator(recordLists, pos)
+      }
+    }
+  }
 }

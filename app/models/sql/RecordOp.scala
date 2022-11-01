@@ -103,6 +103,8 @@ class RecordOp @Inject()(sqlServer: SqlServer, calibrationOp: CalibrationOp, mon
     val recordF = calibrateHelper(rawRecords, startTime, endTime)
 
     for (records <- recordF) yield {
+      monitorTypeOp.appendCalculatedMtRecord(records, mtList)
+
       val pairs =
         for (mt <- mtList) yield {
           val list =

@@ -196,5 +196,6 @@ class MonitorTypeOp @Inject()(sqlServer: SqlServer) extends MonitorTypeDB {
     }
 
     refreshMtv()
+    ensureCalculatedMonitorTypes()
   }
 }
