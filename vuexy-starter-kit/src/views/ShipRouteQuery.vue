@@ -63,7 +63,7 @@
                 /></b-col>
                 <b-col>
                   <b-form-checkbox v-model="form.ais"
-                    >是否顯示AIS軌跡</b-form-checkbox
+                    >顯示AIS軌跡</b-form-checkbox
                   >
                 </b-col>
               </b-row>
@@ -97,12 +97,14 @@
       border-variant="primary"
       :title="shipRouteTitle"
     >
-      <b-alert show fade variant="primary"
-        ><h2>
-          圖示代表是船隻最後位置,
-          線條代表期間軌跡。監測船點向北線條長度和顏色代表濃度分級，可進一步透過系統管理＞測項管理設定分級。
-        </h2></b-alert
-      >
+      <b-form-group label="濃度圖類型:" label-cols-md="2">
+        <b-form-radio-group
+          id="graph-type"
+          v-model="form.graphType"
+          :options="graphOptions"
+          name="graph-type"
+        ></b-form-radio-group>
+      </b-form-group>
       <div class="map_container">
         <GmapMap
           ref="mapRef"
@@ -112,7 +114,11 @@
           class="map_canvas"
           :options="mapOption"
         >
-          <div id="mapLegend" class="mb-2 rounded bg-white border">
+          <div
+            v-if="form.graphType === 'bar'"
+            id="mapLegend"
+            class="mb-2 rounded bg-white border"
+          >
             <b-table-simple small>
               <b-thead>
                 <b-tr class="text-center"><b-th colspan="2">圖例</b-th></b-tr>
@@ -123,6 +129,10 @@
                     ><strong>___</strong></b-td
                   >
                   <b-td>監測(海巡)軌跡</b-td>
+                </b-tr>
+                <b-tr>
+                  <b-td :style="{ 'background-color': 'green' }"></b-td>
+                  <b-td>{{ getLevelExplain(0) }}</b-td>
                 </b-tr>
                 <b-tr>
                   <b-td :style="{ 'background-color': 'yellow' }"></b-td>
@@ -152,12 +162,33 @@
               :icon="masterShipIcon"
             />
             <GmapPolyline stroke-color="red" :path="masterRoute" />
-            <div v-if="form.monitorType">
-              <GmapPolyline
-                v-for="(recordList, idx) in shipRouteResult.monitorRecords"
-                :key="`mtValue${idx}`"
-                :stroke-color="getRecordColor(recordList)"
-                :path="getRecordLine(recordList)"
+            <div
+              v-if="
+                mapLoaded &&
+                form.monitorType &&
+                shipRouteResult.monitorRecords.length &&
+                form.graphType === 'bar'
+              "
+            >
+              <GmapMarker
+                v-for="(record, idx) in shipRouteResult.monitorRecords"
+                :key="`mtValue_${idx}`"
+                :position="getRecordPos(record)"
+                :icon="getRecordIcon(record)"
+                :title="getRecordExplain(record)"
+              />
+            </div>
+            <div
+              v-if="
+                mapLoaded &&
+                form.monitorType &&
+                shipRouteResult.monitorRecords.length &&
+                form.graphType === 'heatmap'
+              "
+            >
+              <gmap-heatmap-layer
+                :data="heatmapMarker"
+                :options="heatmapOption"
               />
             </div>
             <div v-if="form.ais">
@@ -202,7 +233,7 @@ import { mapActions, mapGetters, mapMutations } from 'vuex';
 import { Monitor } from '../store/monitors/types';
 import moment from 'moment';
 import axios from 'axios';
-import { faShip, faFerry } from '@fortawesome/free-solid-svg-icons';
+import { faShip, faFerry, faUpLong } from '@fortawesome/free-solid-svg-icons';
 import { MonitorType, RecordList, Position } from './types';
 
 interface ShipData {
@@ -242,18 +273,26 @@ export default Vue.extend({
       { txt: '小時資料', id: 'hour' },
       { txt: '分鐘資料', id: 'min' },
     ];
+    let graphOptions = [
+      { text: '濃度柱狀圖', value: 'bar' },
+      { text: '熱視圖', value: 'heatmap' },
+    ];
+    let heatmapOption = { dissipating: false };
     return {
       form: {
         monitor: '',
         monitorType: '',
         dataType: 'hour',
         range,
+        graphType: 'bar',
         ais: false,
       },
       dataTypes,
+      graphOptions,
       shipRouteResult,
       mapOption,
       mapLoaded,
+      heatmapOption,
     };
   },
   computed: {
@@ -342,6 +381,23 @@ export default Vue.extend({
         scale: 0.04,
       };
     },
+    heatmapMarker(): Array<any> {
+      if (this.mapLoaded && this.shipRouteResult.monitorRecords.length !== 0) {
+        let ret = new Array<any>();
+        for (let recordList of this.shipRouteResult.monitorRecords) {
+          let lat = this.getRecordValue(recordList, 'LAT');
+          let lng = this.getRecordValue(recordList, 'LNG');
+          if (lat !== undefined && lng !== undefined) {
+            ret.push({
+              location: new google.maps.LatLng({ lat, lng }),
+              weight: this.getLevelIndex(recordList),
+            });
+          }
+        }
+        return ret;
+      }
+      return [];
+    },
   },
   async mounted() {
     await this.fetchMonitors();
@@ -359,6 +415,7 @@ export default Vue.extend({
           map.controls[google.maps.ControlPosition.BOTTOM_LEFT].push(mapLegend);
         });
       }
+      console.log(this.$heatmapLayerObject);
     });
 
     if (this.activatedMonitorTypes.length !== 0)
@@ -385,20 +442,6 @@ export default Vue.extend({
         this.setLoading({ loading: false });
       }
     },
-    getShipIcon(): any {
-      return {
-        path: faShip.icon[4] as string,
-        fillColor: '#0000ff',
-        fillOpacity: 1,
-        anchor: new google.maps.Point(
-          faShip.icon[0] / 2, // width
-          faShip.icon[1], // height
-        ),
-        strokeWeight: 1,
-        strokeColor: '#ffffff',
-        scale: 0.04,
-      };
-    },
     getRecordValue(recordList: RecordList, mt: string): number | undefined {
       let mtRecord = recordList.mtDataList.find(
         mtRecord => mtRecord.mtName === mt,
@@ -419,6 +462,50 @@ export default Vue.extend({
       let colorIdx = this.getLevelIndex(recordList);
 
       return colors[Math.min(colors.length - 1, colorIdx)];
+    },
+    getRecordIcon(recordList: RecordList): object {
+      if (!this.mapLoaded) return {};
+
+      return {
+        path: faUpLong.icon[4] as string,
+        fillColor: this.getRecordColor(recordList),
+        fillOpacity: 0.5,
+        anchor: new google.maps.Point(
+          faUpLong.icon[0] / 2, // width
+          faUpLong.icon[1], // height
+        ),
+        strokeWeight: 0,
+        strokeColor: '#000000',
+        scale: 0.009 * Math.pow(1.5, this.getLevelIndex(recordList)),
+      };
+    },
+    getRecordPos(recordList: RecordList): any {
+      let latRecord = recordList.mtDataList.find(
+        mtData => mtData.mtName === 'LAT',
+      );
+      let lngRecord = recordList.mtDataList.find(
+        mtData => mtData.mtName === 'LNG',
+      );
+
+      if (
+        latRecord === undefined ||
+        latRecord.value === undefined ||
+        lngRecord === undefined ||
+        lngRecord.value === undefined
+      )
+        return {};
+
+      return {
+        lat: latRecord.value,
+        lng: lngRecord.value,
+      };
+    },
+    getRecordExplain(record: RecordList): string {
+      let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
+      let v = this.getRecordValue(record, this.form.monitorType);
+      let vStr = v?.toFixed(mtCase.prec);
+      let dtStr = moment(record._id.time).format('lll');
+      return `${dtStr} ${vStr}${mtCase.unit}`;
     },
     getRecordLine(recordList: RecordList): Array<Position> {
       let lat = this.getRecordValue(recordList, 'LAT');
@@ -449,6 +536,11 @@ export default Vue.extend({
 
       let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
       const levels = mtCase.levels ?? [1, 2, 3, 4, 5];
+      if (idx == 0)
+        return `${mtCase.desp}濃度 < ${levels[idx].toFixed(mtCase.prec)}${
+          mtCase.unit
+        }`;
+
       if (idx >= 1 && idx <= levels.length - 1)
         return `${mtCase.desp}濃度${levels[idx - 1].toFixed(
           mtCase.prec,

@@ -162,7 +162,7 @@ router.beforeEach((to, from, next) => {
 Vue.use(GmapVue, {
   load: {
     key: 'AIzaSyBedM4POn2tywGFC81jAIGuYEPPYc9OpGU',
-    libraries: 'places', // This is required if you use the Autocomplete plugin
+    libraries: 'visualization', // This is required if you use the Autocomplete plugin
     v: '3.26',
   },
   installComponents: true,

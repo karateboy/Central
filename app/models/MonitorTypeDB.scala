@@ -309,13 +309,23 @@ trait MonitorTypeDB {
         val lng1 = lastMtMap(MonitorType.LNG).value.get
         val lat2 = mtMap(MonitorType.LAT).value.get
         val lng2 = mtMap(MonitorType.LNG).value.get
-        val dy = lat2 - lat1
-        val dx = Math.cos(Math.PI / 180 * lat1) * (lng2 - lng1)
-
-        val degree = if (Math.abs(dx) <= 0.0001 && Math.abs(dy) <= 0.0001)
-          0.0d
+        // bearing = atan2(X, Y)
+        // X = cos(lat2)*sin(dL)
+        // Y = cos
+        val dL = lng2 - lng1
+        val X = Math.cos(lat2)*Math.sin(dL)
+        val Y = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(dL)
+        val theta = Math.atan2(X, Y)
+        /*
+        val dPhi = Math.log(Math.tan(lat2 / 2 + 45.0d) / Math.tan(lat1 / 2 + 45.0d))
+        val dLon = Math.abs(lng1 - lng2)
+        val theta = if (dLon < 180)
+          Math.atan2(dLon, dPhi)
         else
-          Math.toDegrees(Math.atan2(dy, dx))
+          Math.atan2(dLon % 180, dPhi)
+        */
+        val degree =
+          Math.toDegrees(theta)
 
         if (degree >= 0)
           MtRecord(MonitorType.DIRECTION, Some(degree), MonitorStatus.NormalStat)
@@ -345,8 +355,8 @@ trait MonitorTypeDB {
           for (windDir <- mtMap(MonitorType.WIN_DIRECTION).value; dir <- mtMap(MonitorType.DIRECTION).value) yield
             Math.abs(Math.toDegrees(Math.toRadians(dir - windDir)))
 
-        val adjust = value map(v=>{
-          if(v <= 180)
+        val adjust = value map (v => {
+          if (v <= 180)
             v
           else
             360 - v
@@ -373,13 +383,13 @@ trait MonitorTypeDB {
     }).foreach(ensure)
   }
 
-  def appendCalculatedMtRecord(recordLists:Seq[RecordList], mtList:Seq[String]): Unit = {
+  def appendCalculatedMtRecord(recordLists: Seq[RecordList], mtList: Seq[String]): Unit = {
     if (mtList.find(monitorTypeCalculatorMap.contains).nonEmpty) {
       for {pos <- scala.collection.immutable.Range(0, recordLists.length)
            mtCase <- calculatedMonitorTypes
            calculator = monitorTypeCalculatorMap(mtCase._id)} {
         val recordList = recordLists(pos)
-        if(recordList.mtDataList.find(mtRecord=>mtRecord.mtName == mtCase._id).isEmpty)
+        if (recordList.mtDataList.find(mtRecord => mtRecord.mtName == mtCase._id).isEmpty)
           calculator(recordLists, pos)
       }
     }
