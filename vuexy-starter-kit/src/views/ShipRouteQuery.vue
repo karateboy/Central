@@ -114,12 +114,8 @@
           class="map_canvas"
           :options="mapOption"
         >
-          <div
-            v-if="form.graphType === 'bar'"
-            id="mapLegend"
-            class="mb-2 rounded bg-white border"
-          >
-            <b-table-simple small>
+          <div id="mapLegend" class="mb-2 rounded bg-white border">
+            <b-table-simple v-show="form.graphType === 'bar'" small>
               <b-thead>
                 <b-tr class="text-center"><b-th colspan="2">圖例</b-th></b-tr>
               </b-thead>
