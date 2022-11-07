@@ -62,6 +62,9 @@
                     :options="activatedMonitorTypes"
                 /></b-col>
                 <b-col>
+                  <b-form-checkbox v-model="form.shipRoute"
+                    >顯示監測船軌跡</b-form-checkbox
+                  >
                   <b-form-checkbox v-model="form.ais"
                     >顯示AIS軌跡</b-form-checkbox
                   >
@@ -95,15 +98,25 @@
     <b-card
       v-show="displayRoute"
       border-variant="primary"
-      :title="shipRouteTitle"
+      :header="shipRouteTitle"
+      header-tag="h2"
     >
       <b-form-group label="濃度圖類型:" label-cols-md="2">
-        <b-form-radio-group
-          id="graph-type"
-          v-model="form.graphType"
-          :options="graphOptions"
-          name="graph-type"
-        ></b-form-radio-group>
+        <b-row>
+          <b-col cols="3"
+            ><b-form-radio-group
+              id="graph-type"
+              v-model="form.graphType"
+              :options="graphOptions"
+              name="graph-type"
+            ></b-form-radio-group
+          ></b-col>
+          <b-col v-if="form.graphType === 'heatmap'"
+            ><b-form-checkbox v-model="heatmapOption.dissipating">
+              縮放地圖時加強影響
+            </b-form-checkbox></b-col
+          >
+        </b-row>
       </b-form-group>
       <div class="map_container">
         <GmapMap
@@ -157,7 +170,11 @@
               :clickable="true"
               :icon="masterShipIcon"
             />
-            <GmapPolyline stroke-color="red" :path="masterRoute" />
+            <GmapPolyline
+              v-if="form.shipRoute"
+              stroke-color="red"
+              :path="masterRoute"
+            />
             <div
               v-if="
                 mapLoaded &&
@@ -229,7 +246,7 @@ import { mapActions, mapGetters, mapMutations } from 'vuex';
 import { Monitor } from '../store/monitors/types';
 import moment from 'moment';
 import axios from 'axios';
-import { faShip, faFerry, faUpLong } from '@fortawesome/free-solid-svg-icons';
+import { faShip, faFerry, faCircle } from '@fortawesome/free-solid-svg-icons';
 import { MonitorType, RecordList, Position } from './types';
 
 interface ShipData {
@@ -281,6 +298,7 @@ export default Vue.extend({
         dataType: 'hour',
         range,
         graphType: 'bar',
+        shipRoute: false,
         ais: false,
       },
       dataTypes,
@@ -327,7 +345,7 @@ export default Vue.extend({
         fillOpacity: 1,
         anchor: new google.maps.Point(
           faShip.icon[0] / 2, // width
-          faShip.icon[1], // height
+          faShip.icon[1] / 2, // height
         ),
         strokeWeight: 1,
         strokeColor: '#ffffff',
@@ -383,10 +401,17 @@ export default Vue.extend({
         for (let recordList of this.shipRouteResult.monitorRecords) {
           let lat = this.getRecordValue(recordList, 'LAT');
           let lng = this.getRecordValue(recordList, 'LNG');
-          if (lat !== undefined && lng !== undefined) {
+          let speed = this.getRecordValue(recordList, 'SPEED');
+          let value = this.getRecordValue(recordList, this.form.monitorType);
+          if (
+            lat !== undefined &&
+            lng !== undefined &&
+            speed !== undefined &&
+            value !== undefined
+          ) {
             ret.push({
               location: new google.maps.LatLng({ lat, lng }),
-              weight: this.getLevelIndex(recordList),
+              weight: value * speed,
             });
           }
         }
@@ -463,16 +488,16 @@ export default Vue.extend({
       if (!this.mapLoaded) return {};
 
       return {
-        path: faUpLong.icon[4] as string,
+        path: faCircle.icon[4] as string,
         fillColor: this.getRecordColor(recordList),
-        fillOpacity: 0.5,
+        fillOpacity: 0.25,
         anchor: new google.maps.Point(
-          faUpLong.icon[0] / 2, // width
-          faUpLong.icon[1], // height
+          faCircle.icon[0] / 2, // width
+          faCircle.icon[1], // height
         ),
         strokeWeight: 0,
         strokeColor: '#000000',
-        scale: 0.009 * Math.pow(1.5, this.getLevelIndex(recordList)),
+        scale: this.form.dataType === 'hour' ? 0.06 : 0.04,
       };
     },
     getRecordPos(recordList: RecordList): any {
