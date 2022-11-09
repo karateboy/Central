@@ -61,10 +61,7 @@
                     :reduce="mt => mt._id"
                     :options="activatedMonitorTypes"
                 /></b-col>
-                <b-col>
-                  <b-form-checkbox v-model="form.shipRoute"
-                    >顯示監測船軌跡</b-form-checkbox
-                  >
+                <b-col class="align-middle">
                   <b-form-checkbox v-model="form.ais"
                     >顯示AIS軌跡</b-form-checkbox
                   >
@@ -101,23 +98,33 @@
       :header="shipRouteTitle"
       header-tag="h2"
     >
-      <b-form-group label="濃度圖類型:" label-cols-md="2">
-        <b-row>
-          <b-col cols="3"
-            ><b-form-radio-group
-              id="graph-type"
-              v-model="form.graphType"
-              :options="graphOptions"
-              name="graph-type"
-            ></b-form-radio-group
-          ></b-col>
-          <b-col v-if="form.graphType === 'heatmap'"
-            ><b-form-checkbox v-model="heatmapOption.dissipating">
-              縮放地圖時加強影響
-            </b-form-checkbox></b-col
+      <b-row>
+        <b-col cols="2">
+          <b-form-checkbox v-model="form.shipRoute"
+            >顯示監測船軌跡</b-form-checkbox
           >
-        </b-row>
-      </b-form-group>
+        </b-col>
+        <b-col>
+          <b-form-group label="濃度圖類型:" label-cols-md="2">
+            <b-row>
+              <b-col cols="3"
+                ><b-form-radio-group
+                  id="graph-type"
+                  v-model="form.graphType"
+                  :options="graphOptions"
+                  stacked
+                  name="graph-type"
+                ></b-form-radio-group
+              ></b-col>
+              <b-col v-if="form.graphType === 'heatmap'"
+                ><b-form-checkbox v-model="heatmapOption.dissipating">
+                  縮放地圖不加強影響力
+                </b-form-checkbox></b-col
+              >
+            </b-row>
+          </b-form-group>
+        </b-col>
+      </b-row>
       <div class="map_container">
         <GmapMap
           ref="mapRef"
@@ -290,7 +297,7 @@ export default Vue.extend({
       { text: '濃度柱狀圖', value: 'bar' },
       { text: '熱視圖', value: 'heatmap' },
     ];
-    let heatmapOption = { dissipating: false };
+    let heatmapOption = { dissipating: false, radius: 25 };
     return {
       form: {
         monitor: '',
@@ -345,7 +352,7 @@ export default Vue.extend({
         fillOpacity: 1,
         anchor: new google.maps.Point(
           faShip.icon[0] / 2, // width
-          faShip.icon[1] / 2, // height
+          faShip.icon[1], // height
         ),
         strokeWeight: 1,
         strokeColor: '#ffffff',
@@ -402,7 +409,7 @@ export default Vue.extend({
           let lat = this.getRecordValue(recordList, 'LAT');
           let lng = this.getRecordValue(recordList, 'LNG');
           let speed = this.getRecordValue(recordList, 'SPEED');
-          let value = this.getRecordValue(recordList, this.form.monitorType);
+          let value = this.getLevelIndex(recordList);
           if (
             lat !== undefined &&
             lng !== undefined &&
@@ -490,10 +497,10 @@ export default Vue.extend({
       return {
         path: faCircle.icon[4] as string,
         fillColor: this.getRecordColor(recordList),
-        fillOpacity: 0.25,
+        fillOpacity: 0.5,
         anchor: new google.maps.Point(
           faCircle.icon[0] / 2, // width
-          faCircle.icon[1], // height
+          faCircle.icon[1] / 2, // height
         ),
         strokeWeight: 0,
         strokeColor: '#000000',

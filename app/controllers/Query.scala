@@ -46,7 +46,7 @@ case class DataTab(columnNames: Seq[String], rows: Seq[RowData])
 
 case class ManualAuditParam(reason: String, updateList: Seq[UpdateRecordParam])
 
-case class UpdateRecordParam(time: Long, monitor:String, mt: String, status: String)
+case class UpdateRecordParam(time: Long, monitor: String, mt: String, status: String)
 
 @Singleton
 class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorOp: MonitorDB,
@@ -163,12 +163,13 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
   def scatterChart(monitorStr: String, monitorTypeStr: String, tabTypeStr: String, statusFilterStr: String,
                    startNum: Long, endNum: Long) = Security.Authenticated.async {
     implicit request =>
+      val userInfo = request.user
       val monitors = monitorStr.split(':')
       val monitorTypeStrArray = monitorTypeStr.split(':')
       val monitorTypes = monitorTypeStrArray
       val statusFilter = MonitorStatusFilter.withName(statusFilterStr)
       val tabType = TableType.withName(tabTypeStr)
-      val (start, end) =
+      val (start, _end) =
         if (tabType == TableType.hour)
           (new DateTime(startNum).withMinuteOfHour(0).withSecondOfMinute(0).withMillisOfSecond(0),
             new DateTime(endNum).withMinuteOfHour(0).withSecondOfMinute(0).withMillisOfSecond(0))
@@ -178,8 +179,19 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
 
       assert(monitorTypes.length == 2)
 
-      for (chart <- compareChartHelper(monitors, monitorTypes, tabType, start, end)(statusFilter)) yield
-        Results.Ok(Json.toJson(chart))
+      val retFF =
+        for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
+          val group = groupOpt.get
+          var end =
+            if (_end >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+              DateTime.now().minusHours(group.delayHour.getOrElse(0))
+            else
+              _end
+
+          for (chart <- compareChartHelper(monitors, monitorTypes, tabType, start, end)(statusFilter)) yield
+            Results.Ok(Json.toJson(chart))
+        }
+      retFF.flatMap(x=>x)
   }
 
 
@@ -193,11 +205,11 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
       val reportUnit = ReportUnit.withName(reportUnitStr)
       val statusFilter = MonitorStatusFilter.withName(statusFilterStr)
 
-      for(groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
+      for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
         val group = groupOpt.get
         var endDateTime = new DateTime(endNum)
 
-        if(endDateTime >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+        if (endDateTime >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
           endDateTime = DateTime.now().minusHours(group.delayHour.getOrElse(0))
 
         val (tabType, start, end) =
@@ -558,69 +570,69 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
       val tabType = TableType.withName(tabTypeStr)
       val userInfo = request.user
       val ret =
-      for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
-        val group = groupOpt.get
-        val startDateTime = new DateTime(startNum)
-        var endDateTime = new DateTime(endNum)
+        for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
+          val group = groupOpt.get
+          val startDateTime = new DateTime(startNum)
+          var endDateTime = new DateTime(endNum)
 
-        if (endDateTime >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
-          endDateTime = DateTime.now().minusHours(group.delayHour.getOrElse(0))
+          if (endDateTime >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+            endDateTime = DateTime.now().minusHours(group.delayHour.getOrElse(0))
 
-        val (start, end) =
-          if (tabType == TableType.hour) {
-            (startDateTime.withMinuteOfHour(0), endDateTime.withMinute(0) + 1.hour)
-          } else {
-            (startDateTime, endDateTime)
-          }
-
-        val resultFuture = recordOp.getRecordListFuture(TableType.mapCollection(tabType))(start, end, monitors)
-        val emptyCell = CellData("-", Seq.empty[String])
-        for (recordLists <- resultFuture) yield {
-          import scala.collection.mutable.Map
-          monitorTypeOp.appendCalculatedMtRecord(recordLists, monitorTypes)
-
-          val timeMtMonitorMap = Map.empty[DateTime, Map[String, Map[String, CellData]]]
-          recordLists foreach {
-            r =>
-              val stripedTime = new DateTime(r._id.time).withSecondOfMinute(0).withMillisOfSecond(0)
-              val mtMonitorMap = timeMtMonitorMap.getOrElseUpdate(stripedTime, Map.empty[String, Map[String, CellData]])
-              for (mt <- monitorTypes.toSeq) {
-                val monitorMap = mtMonitorMap.getOrElseUpdate(mt, Map.empty[String, CellData])
-                val cellData = if (r.mtMap.contains(mt)) {
-                  val mtRecord = r.mtMap(mt)
-                  CellData(monitorTypeOp.format(mt, mtRecord.value),
-                    monitorTypeOp.getCssClassStr(mtRecord), Some(mtRecord.status))
-                } else
-                  emptyCell
-
-                monitorMap.update(r._id.monitor, cellData)
-              }
-          }
-          val timeList = timeMtMonitorMap.keys.toList.sorted
-          val timeRows: Seq[RowData] = for (time <- timeList) yield {
-            val mtMonitorMap = timeMtMonitorMap(time)
-            var cellDataList = Seq.empty[CellData]
-            for {
-              mt <- monitorTypes
-              m <- monitors
-            } {
-              val monitorMap = mtMonitorMap(mt)
-              if (monitorMap.contains(m))
-                cellDataList = cellDataList :+ (mtMonitorMap(mt)(m))
-              else
-                cellDataList = cellDataList :+ (emptyCell)
+          val (start, end) =
+            if (tabType == TableType.hour) {
+              (startDateTime.withMinuteOfHour(0), endDateTime.withMinute(0) + 1.hour)
+            } else {
+              (startDateTime, endDateTime)
             }
-            RowData(time.getMillis, cellDataList)
-          }
 
-          val columnNames = monitorTypes.toSeq map {
-            monitorTypeOp.map(_).desp
+          val resultFuture = recordOp.getRecordListFuture(TableType.mapCollection(tabType))(start, end, monitors)
+          val emptyCell = CellData("-", Seq.empty[String])
+          for (recordLists <- resultFuture) yield {
+            import scala.collection.mutable.Map
+            monitorTypeOp.appendCalculatedMtRecord(recordLists, monitorTypes)
+
+            val timeMtMonitorMap = Map.empty[DateTime, Map[String, Map[String, CellData]]]
+            recordLists foreach {
+              r =>
+                val stripedTime = new DateTime(r._id.time).withSecondOfMinute(0).withMillisOfSecond(0)
+                val mtMonitorMap = timeMtMonitorMap.getOrElseUpdate(stripedTime, Map.empty[String, Map[String, CellData]])
+                for (mt <- monitorTypes.toSeq) {
+                  val monitorMap = mtMonitorMap.getOrElseUpdate(mt, Map.empty[String, CellData])
+                  val cellData = if (r.mtMap.contains(mt)) {
+                    val mtRecord = r.mtMap(mt)
+                    CellData(monitorTypeOp.format(mt, mtRecord.value),
+                      monitorTypeOp.getCssClassStr(mtRecord), Some(mtRecord.status))
+                  } else
+                    emptyCell
+
+                  monitorMap.update(r._id.monitor, cellData)
+                }
+            }
+            val timeList = timeMtMonitorMap.keys.toList.sorted
+            val timeRows: Seq[RowData] = for (time <- timeList) yield {
+              val mtMonitorMap = timeMtMonitorMap(time)
+              var cellDataList = Seq.empty[CellData]
+              for {
+                mt <- monitorTypes
+                m <- monitors
+              } {
+                val monitorMap = mtMonitorMap(mt)
+                if (monitorMap.contains(m))
+                  cellDataList = cellDataList :+ (mtMonitorMap(mt)(m))
+                else
+                  cellDataList = cellDataList :+ (emptyCell)
+              }
+              RowData(time.getMillis, cellDataList)
+            }
+
+            val columnNames = monitorTypes.toSeq map {
+              monitorTypeOp.map(_).desp
+            }
+            Ok(Json.toJson(DataTab(columnNames, timeRows)))
           }
-          Ok(Json.toJson(DataTab(columnNames, timeRows)))
         }
-      }
 
-    ret.flatMap(x=>x)
+      ret.flatMap(x => x)
   }
 
   def historyReport(monitorTypeStr: String, tabTypeStr: String,
@@ -783,6 +795,7 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
   implicit val write = Json.writes[InstrumentReport]
 
   import Alarm._
+
   def recordList(mtStr: String, startLong: Long, endLong: Long) = Security.Authenticated {
     val monitorType = (mtStr)
     implicit val w = Json.writes[Record]
@@ -806,7 +819,7 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
         },
         maParam => {
           for (param <- maParam.updateList) {
-            recordOp.updateRecordStatus(dt = param.time, monitor=param.monitor, mt = param.mt, status = param.status)(TableType.mapCollection(tabType))
+            recordOp.updateRecordStatus(dt = param.time, monitor = param.monitor, mt = param.mt, status = param.status)(TableType.mapCollection(tabType))
             val log = ManualAuditLog(new DateTime(param.time).toDate, monitor = param.monitor, mt = param.mt, modifiedTime = DateTime.now(),
               operator = user.name, changedStatus = param.status, reason = maParam.reason)
             manualAuditLogOp.upsertLog(log)
