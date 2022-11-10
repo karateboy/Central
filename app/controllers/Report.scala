@@ -52,7 +52,8 @@ class Report @Inject()(monitorDB: MonitorDB, monitorTypeOp: MonitorTypeDB, recor
           case PeriodReport.DailyReport =>
             val startDate = new DateTime(startNum).withMillisOfDay(0)
             val endDate =
-              if (startDate.plusDays(1) >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+              if (group.delayHour.getOrElse(0) != 0 &&
+                startDate.plusDays(1) >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
                 DateTime.now().minusHours(group.delayHour.getOrElse(0)).minusDays(1).withMillisOfDay(0)
               else
                 startDate + 1.day
@@ -127,7 +128,8 @@ class Report @Inject()(monitorDB: MonitorDB, monitorTypeOp: MonitorTypeDB, recor
           case PeriodReport.MonthlyReport =>
             val start = new DateTime(startNum).withMillisOfDay(0).withDayOfMonth(1)
             val end =
-              if (start.plusMonths(1) >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+              if (group.delayHour.getOrElse(0) != 0 &&
+                start.plusMonths(1) >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
                 DateTime.now().minusHours(group.delayHour.getOrElse(0)).minusDays(1).withMillisOfDay(0)
               else
                 start + 1.month
@@ -283,7 +285,8 @@ class Report @Inject()(monitorDB: MonitorDB, monitorTypeOp: MonitorTypeDB, recor
         val group = groupOpt.get
         val start = new DateTime(startDate).withMillisOfDay(0).withDayOfMonth(1)
         val end =
-          if (start.plusMonths(1) >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+          if (group.delayHour.getOrElse(0) != 0 &&
+            start.plusMonths(1) >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
             DateTime.now().minusHours(group.delayHour.getOrElse(0)).minusDays(1).withMillisOfDay(0)
           else
             start + 1.month

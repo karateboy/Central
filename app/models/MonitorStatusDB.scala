@@ -34,8 +34,7 @@ trait MonitorStatusDB {
       val tagInfo = getTagInfo(key)
       tagInfo.statusType match {
         case StatusType.Auto =>
-          val ruleId = tagInfo.auditRule.get.toLower
-          MonitorStatus(key, s"自動註記:${ruleId}")
+          MonitorStatus(key, s"自動註記:${tagInfo.auditRule.getOrElse("")}")
         case StatusType.ManualInvalid =>
           MonitorStatus(key, StatusType.map(StatusType.ManualInvalid))
         case StatusType.ManualValid =>

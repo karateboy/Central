@@ -325,7 +325,7 @@ export default Vue.extend({
     audit() {
       // case class ManualAuditParam(reason: String, updateList: Seq[UpdateRecordParam])
       // case class UpdateRecordParam(time: Long, mt:String, status: String)
-      const updateList = [];
+      const updateList = new Array<any>();
       for (const item of this.rows) {
         if (item.include) {
           for (let mtIdx = 0; mtIdx < this.form.monitorTypes.length; mtIdx++) {

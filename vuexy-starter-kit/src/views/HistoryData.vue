@@ -164,6 +164,7 @@ import 'vue2-datepicker/index.css';
 import 'vue2-datepicker/locale/zh-tw';
 const Ripple = require('vue-ripple-directive');
 import { mapState, mapGetters, mapActions, mapMutations } from 'vuex';
+import { Group } from './types';
 import moment from 'moment';
 import axios from 'axios';
 const excel = require('../libs/excel');

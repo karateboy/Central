@@ -327,6 +327,24 @@ const router = new VueRouter({
       },
     },
     {
+      path: '/engine-audit',
+      name: 'engine-audit',
+      component: () => import('@/views/EngineAudit.vue'),
+      meta: {
+        pageTitle: '引擎排放註記',
+        breadcrumb: [
+          {
+            text: '系統管理',
+            active: true,
+          },
+          {
+            text: '引擎排放註記',
+            active: true,
+          },
+        ],
+      },
+    },
+    {
       path: '/manual-audit',
       name: 'manual-audit',
       component: () => import('@/views/ManualAudit.vue'),

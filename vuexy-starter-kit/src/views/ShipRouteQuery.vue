@@ -443,7 +443,6 @@ export default Vue.extend({
           map.controls[google.maps.ControlPosition.BOTTOM_LEFT].push(mapLegend);
         });
       }
-      console.log(this.$heatmapLayerObject);
     });
 
     if (this.activatedMonitorTypes.length !== 0)

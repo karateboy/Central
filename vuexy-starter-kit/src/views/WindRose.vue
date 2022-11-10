@@ -134,7 +134,7 @@ export default Vue.extend({
     };
   },
   computed: {
-    ...mapState('monitorTypes', ['monitorTypes']),    
+    ...mapState('monitorTypes', ['monitorTypes']),
     ...mapGetters('monitorTypes', ['mtMap', 'activatedMonitorTypes']),
     ...mapGetters('monitors', ['monitorOfNoEPA']),
     canQuery(): boolean {

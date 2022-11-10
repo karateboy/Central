@@ -16,7 +16,7 @@ case class MonitorStatus(_id: String, desp: String) {
   val info: TagInfo = MonitorStatus.getTagInfo(_id)
 }
 
-case class TagInfo(statusType: StatusType.Value, auditRule: Option[Char], id: String) {
+case class TagInfo(statusType: StatusType.Value, auditRule: Option[String], id: String) {
   override def toString = {
     if ((statusType != StatusType.Internal)
       && auditRule.isDefined)
@@ -39,17 +39,16 @@ object MonitorStatus {
   val ExceedRangeStat = "032"
 
   def getTagInfo(tag: String) = {
-    val id = tag.substring(1)
-    val t = tag.charAt(0)
+    val (t, id) = tag.splitAt(tag.length-2)
     t match {
-      case '0' =>
+      case "0" =>
         TagInfo(StatusType.Internal, None, id)
-      case 'm' =>
+      case "m" =>
         TagInfo(StatusType.ManualValid, Some(t), id)
-      case 'M' =>
+      case "M" =>
         TagInfo(StatusType.ManualInvalid, Some(t), id)
-      case l =>
-        if (t.isLetter)
+      case _ =>
+        if (t(0).isLetter)
           TagInfo(StatusType.Auto, Some(t), id)
         else
           throw new Exception("Unknown type:" + t)
@@ -101,11 +100,11 @@ object MonitorStatus {
     val tagInfo = getTagInfo(s)
     val VALID_STATS = List(NormalStat, OverNormalStat, BelowNormalStat).map(getTagInfo)
 
-    tagInfo.statusType match {
-      case StatusType.Internal =>
+    tagInfo match {
+      case TagInfo(StatusType.Internal, _,_) =>
         VALID_STATS.contains(getTagInfo(s))
-      case StatusType.Auto =>
-        if (tagInfo.auditRule.isDefined && tagInfo.auditRule.get.isLower)
+      case TagInfo(StatusType.Auto, Some(auditRule), _) =>
+        if (auditRule(0).isLower)
           true
         else
           false

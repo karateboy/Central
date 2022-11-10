@@ -12,7 +12,7 @@
     </ul>
 
     <dark-Toggler class="d-none d-lg-block" />
-    <h1 class="ml-3 mt-0 mb-0"><strong>環保署海洋船舶資料監測中心</strong></h1>
+    <h1 class="ml-3 mt-0 mb-0"><strong>臺灣海域空品資訊中心</strong></h1>
 
     <b-navbar-nav class="nav align-items-center">
       <b-nav-item-dropdown

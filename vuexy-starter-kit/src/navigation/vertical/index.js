@@ -110,12 +110,20 @@ export default [
         route: 'signal-type-config',
       },
       {
+        title: '引擎排放註記',
+        route: 'engine-audit',
+      },
+      {
         title: '人工資料註記',
         route: 'manual-audit',
       },
       {
         title: '人工註記查詢',
         route: 'audit-log-query',
+      },
+      {
+        title: '資料管理',
+        route: 'data-management',
       },
       {
         title: '使用者管理',

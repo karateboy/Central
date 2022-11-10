@@ -224,7 +224,7 @@ export default Vue.extend({
       }
     },
     save() {
-      const all = [];
+      const all = new Array<Promise<any>>();
       for (const mt of this.monitorTypes) {
         if (mt.dirty) {
           this.justify(mt);
