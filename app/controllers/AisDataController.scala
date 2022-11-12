@@ -6,13 +6,14 @@ import models._
 import play.api.libs.json.Json
 import play.api.mvc.Controller
 
+import java.util.Date
 import javax.inject.Inject
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 class AisDataController @Inject()(aisDB: AisDB, monitorDB: MonitorDB, recordDB: RecordDB, monitorTypeOp: MonitorTypeDB)extends Controller{
 
-  case class Position(lat:Double, lng:Double)
+  case class Position(lat:Double, lng:Double, date:Option[Date])
   case class ShipData(name:String, route:Seq[Position])
   case class ShipRouteResult(monitorRecords: Seq[RecordList], shipDataList:Seq[ShipData])
   def getShipRoute(monitor:String, tabTypeStr:String, ais:Boolean, start:Long, end:Long)= Security.Authenticated.async {

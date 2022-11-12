@@ -43,51 +43,49 @@
           </b-form-group>
         </b-tab>
         <b-tab title="註記資料區間">
-          <b-row no-gutters>
-            <b-col cols="12">
-              <b-form-group label="測點" label-for="monitor" label-cols-md="3">
-                <v-select
-                  id="monitor"
-                  v-model="form.monitors"
-                  label="desc"
-                  :reduce="m => m._id"
-                  :options="monitorOfNoEPA"
-                  :close-on-select="false"
-                  multiple
-                />
-              </b-form-group>
-            </b-col>
-            <b-col cols="12">
-              <b-form-group
-                label="資料區間"
-                label-for="dataRange"
-                label-cols-md="3"
-              >
-                <date-picker
-                  id="dataRange"
-                  v-model="form.range"
-                  :range="true"
-                  type="datetime"
-                  format="YYYY-MM-DD HH:mm"
-                  value-type="timestamp"
-                  :show-second="false"
-                />
-              </b-form-group>
-            </b-col>
-            <!-- submit and reset -->
+          <b-form-group label="測點" label-for="monitor" label-cols-md="3">
+            <v-select
+              id="monitor"
+              v-model="form.monitors"
+              label="desc"
+              :reduce="m => m._id"
+              :options="monitorOfNoEPA"
+              :close-on-select="false"
+              multiple
+            />
+          </b-form-group>
+          <b-form-group label="測項" label-for="monitorType" label-cols-md="3">
+            <v-select
+              id="monitorType"
+              v-model="form.monitorTypes"
+              label="desp"
+              :reduce="mt => mt._id"
+              :options="activatedMonitorTypes"
+              :close-on-select="false"
+              multiple
+            />
+          </b-form-group>
+          <b-form-group
+            label="資料區間"
+            label-for="dataRange"
+            label-cols-md="3"
+          >
+            <date-picker
+              id="dataRange"
+              v-model="form.range"
+              :range="true"
+              type="datetime"
+              format="YYYY-MM-DD HH:mm"
+              value-type="timestamp"
+              :show-second="false"
+            />
+          </b-form-group>
+          <b-row>
             <b-col offset-md="3">
-              <b-button
-                variant="gradient-primary"
-                class="mr-1"
-                @click="recalculate"
-              >
+              <b-button variant="gradient-primary" class="mr-1" @click="audit">
                 開始註記
               </b-button>
-              <b-button
-                variant="gradient-success"
-                class="mr-1"
-                @click="recalculate"
-              >
+              <b-button variant="gradient-success" class="mr-1" @click="revert">
                 復原註記
               </b-button>
             </b-col>
@@ -115,7 +113,7 @@ import DatePicker from 'vue2-datepicker';
 import 'vue2-datepicker/index.css';
 import 'vue2-datepicker/locale/zh-tw';
 const Ripple = require('vue-ripple-directive');
-import { mapState, mapGetters, mapActions } from 'vuex';
+import { mapGetters, mapActions, mapMutations } from 'vuex';
 import moment from 'moment';
 import axios from 'axios';
 interface EngineAuditSetting {
@@ -128,6 +126,7 @@ interface EngineAuditSetting {
 interface EngineAuditParam {
   setting: EngineAuditSetting;
   monitors: Array<string>;
+  monitorTypes: Array<string>;
   range: Array<number>;
 }
 
@@ -153,7 +152,8 @@ export default Vue.extend({
     };
     let form: EngineAuditParam = {
       setting,
-      monitors: Array<any>(),
+      monitors: Array<string>(),
+      monitorTypes: Array<string>(),
       range,
     };
     return {
@@ -161,27 +161,42 @@ export default Vue.extend({
     };
   },
   computed: {
-    ...mapState('monitors', ['monitors']),
     ...mapGetters('monitors', ['mMap', 'monitorOfNoEPA']),
+    ...mapGetters('monitorTypes', ['mtMap', 'activatedMonitorTypes']),
   },
   async mounted() {
     await this.fetchMonitors();
-
+    await this.fetchMonitorTypes();
     for (const m of this.monitorOfNoEPA) this.form.monitors.push(m._id);
+    if (this.activatedMonitorTypes.length !== 0)
+      this.form.monitorTypes.push(this.activatedMonitorTypes[0]._id);
   },
   methods: {
     ...mapActions('monitors', ['fetchMonitors']),
-    async recalculate() {
-      const monitors = this.form.monitors.join(':');
-      const url = `/Recalculate/${monitors}/${this.form.range[0]}/${this.form.range[1]}`;
-
+    ...mapActions('monitorTypes', ['fetchMonitorTypes']),
+    ...mapMutations(['setLoading']),
+    async audit() {
+      const url = '/EngineAudit';
+      this.setLoading({ loading: true });
       try {
-        const res = await axios.get(url);
-        if (res.data.ok) {
-          this.$bvModal.msgBoxOk('開始重新計算小時值');
-        }
+        const res = await axios.post(url, this.form);
+        if (res.status === 200) this.$bvModal.msgBoxOk('引擎排放註記完成');
       } catch (err) {
         throw new Error('failed to recalculate hour');
+      } finally {
+        this.setLoading({ loading: false });
+      }
+    },
+    async revert() {
+      const url = '/RevertEngineAudit';
+      this.setLoading({ loading: true });
+      try {
+        const res = await axios.post(url, this.form);
+        if (res.status === 200) this.$bvModal.msgBoxOk('復原引擎排放註記完成');
+      } catch (err) {
+        throw new Error('failed to recalculate hour');
+      } finally {
+        this.setLoading({ loading: false });
       }
     },
   },

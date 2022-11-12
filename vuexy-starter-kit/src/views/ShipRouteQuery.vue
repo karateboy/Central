@@ -166,6 +166,10 @@
                   <b-td :style="{ 'background-color': 'purple' }"></b-td>
                   <b-td>{{ getLevelExplain(4) }}</b-td>
                 </b-tr>
+                <b-tr>
+                  <b-td :style="{ 'background-color': 'maroon' }"></b-td>
+                  <b-td>{{ getLevelExplain(5) }}</b-td>
+                </b-tr>
               </b-tbody>
             </b-table-simple>
           </div>
@@ -217,7 +221,7 @@
                 :key="`marker${idx + 1}`"
                 :position="ship.route[0]"
                 :clickable="true"
-                :title="ship.name"
+                :title="getShipTitle(ship)"
                 :icon="shipIcon"
               />
               <GmapPolyline
@@ -485,7 +489,7 @@ export default Vue.extend({
       return levels.length - 1;
     },
     getRecordColor(recordList: RecordList): string {
-      const colors = ['green', 'yellow', 'orange', 'red', 'purple'];
+      const colors = ['green', 'yellow', 'orange', 'red', 'purple', 'maroon'];
       let colorIdx = this.getLevelIndex(recordList);
 
       return colors[Math.min(colors.length - 1, colorIdx)];
@@ -576,6 +580,9 @@ export default Vue.extend({
       return `${mtCase.desp}濃度 > ${levels[levels.length - 1].toFixed(
         mtCase.prec,
       )}${mtCase.unit}`;
+    },
+    getShipTitle(ship: ShipData): string {
+      return `${ship.name}`;
     },
   },
 });

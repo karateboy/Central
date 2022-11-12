@@ -99,7 +99,8 @@ class RuleController @Inject()(spikeRuleOp: SpikeRuleDB, constantRuleOp: Constan
                                 turnSpeedThreshold: Double,
                                 turnDirectionThreshold: Double)
 
-  case class EngineAuditParam(setting: EngineAuditSetting, monitors: Seq[String], range: Seq[Long])
+  case class EngineAuditParam(setting: EngineAuditSetting, monitors: Seq[String],
+                              monitorTypes:Seq[String], range: Seq[Long])
 
   def executeEngineAudit = Security.Authenticated.async(BodyParsers.parse.json) {
     implicit request =>
@@ -116,7 +117,7 @@ class RuleController @Inject()(spikeRuleOp: SpikeRuleDB, constantRuleOp: Constan
       )
   }
 
-  case class RevertEngineAuditParam(monitors: Seq[String], range: Seq[Long])
+  case class RevertEngineAuditParam(monitors: Seq[String], monitorTypes: Seq[String], range: Seq[Long])
 
   def revertEngineAudit() = Security.Authenticated.async(BodyParsers.parse.json) {
     implicit request =>

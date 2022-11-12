@@ -137,6 +137,9 @@ GET     /VariationRules                         controllers.RuleController.getVa
 POST    /VariationRule                          controllers.RuleController.upsertVariationRule
 DELETE  /VariationRule/:monitor/:monitorType    controllers.RuleController.deleteVariationRule(monitor, monitorType)
 
+#Engine Audit
+POST    /EngineAudit                            controllers.RuleController.executeEngineAudit()
+POST    /RevertEngineAudit                      controllers.RuleController.revertEngineAudit()
 #CDX
 GET     /CdxConfig                              controllers.Cdx.getConfig
 PUT     /CdxConfig                              controllers.Cdx.putConfig
