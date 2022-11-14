@@ -122,4 +122,5 @@ export interface RecordList {
 export interface Position {
   lat: number;
   lng: number;
+  date?: number;
 }

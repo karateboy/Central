@@ -140,6 +140,7 @@ DELETE  /VariationRule/:monitor/:monitorType    controllers.RuleController.delet
 #Engine Audit
 POST    /EngineAudit                            controllers.RuleController.executeEngineAudit()
 POST    /RevertEngineAudit                      controllers.RuleController.revertEngineAudit()
+
 #CDX
 GET     /CdxConfig                              controllers.Cdx.getConfig
 PUT     /CdxConfig                              controllers.Cdx.putConfig
@@ -150,7 +151,7 @@ GET     /CdxUpload/:start/:end                  controllers.Cdx.CdxUploadData(st
 #AIS DATA
 GET     /LatestAisData                                      controllers.Realtime.getLatestAisData
 GET     /NearestAisDataInThePast/:monitor/:respType/:start  controllers.Realtime.getNearestAisDataInThePast(monitor, respType, start:Long)
-GET     /ShipRoute/:monitor/:tabType/:ais/:start/:end       controllers.AisDataController.getShipRoute(monitor, tabType, ais:Boolean, start:Long, end:Long)
+GET     /ShipRoute/:monitor/:tabType/:statusFilter/:ais/:start/:end       controllers.AisDataController.getShipRoute(monitor, tabType, statusFilter, ais:Boolean, start:Long, end:Long)
 
 # Data Logger
 GET      /HourRecordRange/:monitor                                                             controllers.DataLogger.getHourRecordRange(monitor)

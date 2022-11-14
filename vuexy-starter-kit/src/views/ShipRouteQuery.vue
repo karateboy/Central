@@ -2,73 +2,64 @@
   <div>
     <b-card>
       <b-form @submit.prevent>
-        <b-row>
-          <b-col cols="12">
-            <b-form-group label="測點" label-for="monitor" label-cols-md="3">
-              <v-select
-                id="monitor"
-                v-model="form.monitor"
-                label="desc"
+        <b-form-group label="測點" label-for="monitor" label-cols-md="3">
+          <v-select
+            id="monitor"
+            v-model="form.monitor"
+            label="desc"
+            :reduce="mt => mt._id"
+            :options="monitorOfNoEPA"
+          />
+        </b-form-group>
+        <b-form-group label="資料種類" label-for="dataType" label-cols-md="3">
+          <v-select
+            id="dataType"
+            v-model="form.dataType"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="dataTypes"
+          />
+        </b-form-group>
+        <b-form-group label="資料區間" label-for="dataRange" label-cols-md="3">
+          <date-picker
+            id="dataRange"
+            v-model="form.range"
+            :range="true"
+            type="datetime"
+            format="YYYY-MM-DD HH:mm"
+            value-type="timestamp"
+            :show-second="false"
+          />
+        </b-form-group>
+        <b-form-group
+          label="測項濃度"
+          label-for="monitorType"
+          label-cols-md="3"
+        >
+          <b-row>
+            <b-col
+              ><v-select
+                id="monitorType"
+                v-model="form.monitorType"
+                label="desp"
                 :reduce="mt => mt._id"
-                :options="monitorOfNoEPA"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="資料種類"
-              label-for="dataType"
-              label-cols-md="3"
-            >
-              <v-select
-                id="dataType"
-                v-model="form.dataType"
-                label="txt"
-                :reduce="dt => dt.id"
-                :options="dataTypes"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="資料區間"
-              label-for="dataRange"
-              label-cols-md="3"
-            >
-              <date-picker
-                id="dataRange"
-                v-model="form.range"
-                :range="true"
-                type="datetime"
-                format="YYYY-MM-DD HH:mm"
-                value-type="timestamp"
-                :show-second="false"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="測項濃度"
-              label-for="monitorType"
-              label-cols-md="3"
-            >
-              <b-row>
-                <b-col
-                  ><v-select
-                    id="monitorType"
-                    v-model="form.monitorType"
-                    label="desp"
-                    :reduce="mt => mt._id"
-                    :options="activatedMonitorTypes"
-                /></b-col>
-                <b-col class="align-middle">
-                  <b-form-checkbox v-model="form.ais"
-                    >顯示AIS軌跡</b-form-checkbox
-                  >
-                </b-col>
-              </b-row>
-            </b-form-group>
-          </b-col>
+                :options="activatedMonitorTypes"
+            /></b-col>
+            <b-col class="align-middle">
+              <b-form-checkbox v-model="form.ais">顯示AIS軌跡</b-form-checkbox>
+            </b-col>
+          </b-row>
+        </b-form-group>
+        <b-form-group label="狀態" label-for="statusFilter" label-cols-md="3">
+          <v-select
+            id="statusFilter"
+            v-model="form.statusFilter"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="statusFilters"
+          />
+        </b-form-group>
+        <b-row>
           <b-col offset-md="3">
             <b-button
               v-ripple.400="'rgba(255, 255, 255, 0.15)'"
@@ -118,7 +109,7 @@
               ></b-col>
               <b-col v-if="form.graphType === 'heatmap'"
                 ><b-form-checkbox v-model="heatmapOption.dissipating">
-                  縮放地圖不加強影響力
+                  縮放地圖不加強擴散效果
                 </b-form-checkbox></b-col
               >
             </b-row>
@@ -301,12 +292,21 @@ export default Vue.extend({
       { text: '濃度柱狀圖', value: 'bar' },
       { text: '熱視圖', value: 'heatmap' },
     ];
-    let heatmapOption = { dissipating: false, radius: 25 };
+    let heatmapOption = { dissipating: false, radius: 50 };
     return {
+      statusFilters: [
+        { id: 'all', txt: '全部' },
+        { id: 'normal', txt: '正常量測值' },
+        { id: 'calbration', txt: '校正' },
+        { id: 'maintance', txt: '維修' },
+        { id: 'invalid', txt: '無效數據' },
+        { id: 'valid', txt: '有效數據' },
+      ],
       form: {
         monitor: '',
         monitorType: '',
         dataType: 'hour',
+        statusFilter: 'all',
         range,
         graphType: 'bar',
         shipRoute: false,
@@ -457,7 +457,7 @@ export default Vue.extend({
     ...mapActions('monitorTypes', ['fetchMonitorTypes']),
     ...mapMutations(['setLoading']),
     async query() {
-      const url = `/ShipRoute/${this.form.monitor}/${this.form.dataType}/${this.form.ais}/${this.form.range[0]}/${this.form.range[1]}`;
+      const url = `/ShipRoute/${this.form.monitor}/${this.form.dataType}/${this.form.statusFilter}/${this.form.ais}/${this.form.range[0]}/${this.form.range[1]}`;
 
       try {
         this.setLoading({ loading: true });
@@ -582,6 +582,13 @@ export default Vue.extend({
       )}${mtCase.unit}`;
     },
     getShipTitle(ship: ShipData): string {
+      if (ship.route.length !== 0) {
+        let len = ship.route.length;
+        let dt = ship.route[len - 1].date;
+        if (dt !== undefined)
+          return `${ship.name}: 最後更新:${moment(dt).format('lll')}`;
+      }
+
       return `${ship.name}`;
     },
   },

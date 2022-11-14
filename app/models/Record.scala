@@ -8,7 +8,7 @@ import play.api.libs.json.Json
 
 import java.util.Date
 
-case class MtRecord(mtName: String, value: Option[Double], status: String)
+case class MtRecord(mtName: String, value: Option[Double], var status: String)
 
 object RecordList {
   def factory(time: Date, mtDataList: Seq[MtRecord], monitor: String): RecordList =

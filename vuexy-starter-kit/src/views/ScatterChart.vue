@@ -2,100 +2,71 @@
   <div>
     <b-card>
       <b-form @submit.prevent>
+        <b-form-group label="測點" label-for="monitor" label-cols-md="3">
+          <v-select
+            id="monitor"
+            v-model="form.monitors"
+            label="desc"
+            :reduce="mt => mt._id"
+            :options="monitors"
+            :close-on-select="false"
+            multiple
+          />
+        </b-form-group>
+        <b-form-group label="測項" label-for="monitorType" label-cols-md="3">
+          <v-select
+            id="monitorType"
+            v-model="form.monitorTypes"
+            label="desp"
+            :reduce="mt => mt._id"
+            :options="activatedMonitorTypes"
+            :close-on-select="false"
+            multiple
+          />
+        </b-form-group>
+        <b-form-group label="資料種類" label-for="dataType" label-cols-md="3">
+          <v-select
+            id="dataType"
+            v-model="form.dataType"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="dataTypes"
+          />
+        </b-form-group>
+        <b-form-group
+          label="回歸趨勢模式"
+          label-for="regressionModes"
+          label-cols-md="3"
+        >
+          <v-select
+            id="regressionModes"
+            v-model="form.regressionSettings.type"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="regressionModes"
+          />
+        </b-form-group>
+        <b-form-group label="狀態" label-for="statusFilter" label-cols-md="3">
+          <v-select
+            id="statusFilter"
+            v-model="form.statusFilter"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="statusFilters"
+          />
+        </b-form-group>
+        <b-form-group label="資料區間" label-for="dataRange" label-cols-md="3">
+          <date-picker
+            id="dataRange"
+            v-model="form.range"
+            :range="true"
+            type="datetime"
+            format="YYYY-MM-DD HH:mm"
+            value-type="timestamp"
+            :show-second="false"
+          />
+        </b-form-group>
         <b-row>
-          <b-col cols="12">
-            <b-form-group label="測點" label-for="monitor" label-cols-md="3">
-              <v-select
-                id="monitor"
-                v-model="form.monitors"
-                label="desc"
-                :reduce="mt => mt._id"
-                :options="monitors"
-                :close-on-select="false"
-                multiple
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="測項"
-              label-for="monitorType"
-              label-cols-md="3"
-            >
-              <v-select
-                id="monitorType"
-                v-model="form.monitorTypes"
-                label="desp"
-                :reduce="mt => mt._id"
-                :options="activatedMonitorTypes"
-                :close-on-select="false"
-                multiple
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="資料種類"
-              label-for="dataType"
-              label-cols-md="3"
-            >
-              <v-select
-                id="dataType"
-                v-model="form.dataType"
-                label="txt"
-                :reduce="dt => dt.id"
-                :options="dataTypes"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="回歸趨勢模式"
-              label-for="regressionModes"
-              label-cols-md="3"
-            >
-              <v-select
-                id="regressionModes"
-                v-model="form.regressionSettings.type"
-                label="txt"
-                :reduce="dt => dt.id"
-                :options="regressionModes"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="狀態"
-              label-for="statusFilter"
-              label-cols-md="3"
-            >
-              <v-select
-                id="statusFilter"
-                v-model="form.statusFilter"
-                label="txt"
-                :reduce="dt => dt.id"
-                :options="statusFilters"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="資料區間"
-              label-for="dataRange"
-              label-cols-md="3"
-            >
-              <date-picker
-                id="dataRange"
-                v-model="form.range"
-                :range="true"
-                type="datetime"
-                format="YYYY-MM-DD HH:mm"
-                value-type="timestamp"
-                :show-second="false"
-              />
-            </b-form-group>
-          </b-col>
-          <!-- submit and reset -->
           <b-col offset-md="3">
             <b-button
               v-ripple.400="'rgba(255, 255, 255, 0.15)'"
@@ -262,12 +233,14 @@ export default Vue.extend({
           href: 'http://www.wecc.com.tw/',
         };
         let series = ret.series as Array<any>;
-        series[0].regression = true;
-        series[0].regressionSettings = {
-          type: this.form.regressionSettings.type,
-          name: '%eq R^2:%r2',
-        };
-        highcharts.chart('chart_container', ret);
+        if (series[0].data.length !== 0) {
+          series[0].regression = true;
+          series[0].regressionSettings = {
+            type: this.form.regressionSettings.type,
+            name: '%eq R^2:%r2',
+          };
+          highcharts.chart('chart_container', ret);
+        } else this.$bvModal.msgBoxOk('沒有足夠資料');
       } catch (err) {
         throw Error(`${err}`);
       } finally {

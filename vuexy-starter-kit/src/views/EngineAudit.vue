@@ -127,6 +127,7 @@ interface EngineAuditParam {
   setting: EngineAuditSetting;
   monitors: Array<string>;
   monitorTypes: Array<string>;
+  tabType: string;
   range: Array<number>;
 }
 
@@ -154,6 +155,7 @@ export default Vue.extend({
       setting,
       monitors: Array<string>(),
       monitorTypes: Array<string>(),
+      tabType: 'min',
       range,
     };
     return {
@@ -192,9 +194,12 @@ export default Vue.extend({
       this.setLoading({ loading: true });
       try {
         const res = await axios.post(url, this.form);
-        if (res.status === 200) this.$bvModal.msgBoxOk('復原引擎排放註記完成');
+        if (res.status === 200) {
+          let ret = res.data;
+          this.$bvModal.msgBoxOk(`已復原引擎排放註記 (${ret.count}筆被復原)`);
+        }
       } catch (err) {
-        throw new Error('failed to recalculate hour');
+        throw new Error('failed to reveert audit');
       } finally {
         this.setLoading({ loading: false });
       }

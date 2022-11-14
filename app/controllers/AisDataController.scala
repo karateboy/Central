@@ -2,7 +2,7 @@ package controllers
 
 import com.github.nscala_time.time.Imports._
 import models.ModelHelper.errorHandler
-import models._
+import models.{MonitorStatusFilter, _}
 import play.api.libs.json.Json
 import play.api.mvc.Controller
 
@@ -16,10 +16,11 @@ class AisDataController @Inject()(aisDB: AisDB, monitorDB: MonitorDB, recordDB: 
   case class Position(lat:Double, lng:Double, date:Option[Date])
   case class ShipData(name:String, route:Seq[Position])
   case class ShipRouteResult(monitorRecords: Seq[RecordList], shipDataList:Seq[ShipData])
-  def getShipRoute(monitor:String, tabTypeStr:String, ais:Boolean, start:Long, end:Long)= Security.Authenticated.async {
+  def getShipRoute(monitor:String, tabTypeStr:String, statusFilterName:String, ais:Boolean, start:Long, end:Long)= Security.Authenticated.async {
     val tabType = TableType.withName(tabTypeStr)
     val startTime = new DateTime(start)
     val endTime = new DateTime(end)
+    val statusFilter = MonitorStatusFilter.withName(statusFilterName)
     val monitorRecordF = recordDB.getRecordListFuture(TableType.mapCollection(tabType))(startTime = startTime, endTime = endTime, Seq(monitor))
     monitorRecordF onFailure errorHandler
     val aisDataListF = if(ais)
@@ -50,9 +51,15 @@ class AisDataController @Inject()(aisDB: AisDB, monitorDB: MonitorDB, recordDB: 
             val shipRoute = shipRouteMap.getOrElseUpdate(shipMap("MMSI"), ListBuffer.empty[Position])
             val lat = shipMap("LAT").toDouble
             val lng = shipMap("LON").toDouble
-            shipRoute.append(Position(lat = lat, lng=lng))
+            val date = shipMap.get("TIMESTAMP").map(DateTime.parse).map(_.plusHours(8).toDate)
+            shipRoute.append(Position(lat = lat, lng=lng, date=date))
           })
       })
+
+      monitorRecord.foreach(recordList=>{
+        recordList.mtDataList = recordList.mtDataList.filter(mtRecord=>MonitorStatusFilter.isMatched(statusFilter, mtRecord.status))
+      })
+
       implicit val w3 = Json.writes[Position]
       implicit val w2 = Json.writes[ShipData]
       implicit val w1 = Json.writes[ShipRouteResult]

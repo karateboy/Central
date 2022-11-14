@@ -1,5 +1,6 @@
 package controllers
 
+import models.EngineAudit.{EngineAuditParam, RevertEngineAuditParam}
 import models._
 import play.api.Logger
 import play.api.libs.json.{JsError, JsValue, Json}
@@ -11,7 +12,7 @@ import scala.concurrent.Future
 
 class RuleController @Inject()(spikeRuleOp: SpikeRuleDB, constantRuleOp: ConstantRuleDB,
                                variationRuleOp: VariationRuleDB,
-                               recordDB: RecordDB) extends Controller {
+                               recordDB: RecordDB, monitorTypeDB: MonitorTypeDB) extends Controller {
 
   def getSpikeRules(): Action[AnyContent] = Security.Authenticated.async {
     for (ret <- spikeRuleOp.getRules()) yield
@@ -94,34 +95,27 @@ class RuleController @Inject()(spikeRuleOp: SpikeRuleDB, constantRuleOp: Constan
       Ok(Json.obj("ok" -> true))
   }
 
-  case class EngineAuditSetting(directionOffsetThreshold: Double,
-                                windSpeedThreshold: Double,
-                                turnSpeedThreshold: Double,
-                                turnDirectionThreshold: Double)
-
-  case class EngineAuditParam(setting: EngineAuditSetting, monitors: Seq[String],
-                              monitorTypes:Seq[String], range: Seq[Long])
-
   def executeEngineAudit = Security.Authenticated.async(BodyParsers.parse.json) {
     implicit request =>
-      implicit val reads = Json.reads[RevertEngineAuditParam]
-      val retParam = request.body.validate[RevertEngineAuditParam]
+      import EngineAudit._
+      val retParam = request.body.validate[EngineAuditParam]
       retParam.fold(
         error => {
           Logger.error(JsError.toJson(error).toString())
           Future.successful(BadRequest(Json.obj("ok" -> false, "message" -> JsError.toJson(error))))
         },
         param => {
+          Logger.info(param.toString)
+          EngineAudit.audit(recordDB, monitorTypeDB)(param)
           Future.successful(Ok(""))
         }
       )
   }
 
-  case class RevertEngineAuditParam(monitors: Seq[String], monitorTypes: Seq[String], range: Seq[Long])
-
+  case class RevertResult(ok:Boolean, count:Int)
   def revertEngineAudit() = Security.Authenticated.async(BodyParsers.parse.json) {
     implicit request =>
-      implicit val reads = Json.reads[RevertEngineAuditParam]
+      import EngineAudit._
       val retParam = request.body.validate[RevertEngineAuditParam]
       retParam.fold(
         error => {
@@ -129,7 +123,10 @@ class RuleController @Inject()(spikeRuleOp: SpikeRuleDB, constantRuleOp: Constan
           Future.successful(BadRequest(Json.obj("ok" -> false, "message" -> JsError.toJson(error))))
         },
         param => {
-          Future.successful(Ok(""))
+          for(ret<-EngineAudit.revert(recordDB)(param)) yield {
+            implicit val write = Json.writes[RevertResult]
+            Ok(Json.toJson(RevertResult(true, ret)))
+          }
         }
       )
   }

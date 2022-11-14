@@ -5,6 +5,7 @@ object StatusType extends Enumeration {
   val Auto = Value("A")
   val ManualInvalid = Value("M")
   val ManualValid = Value("m")
+
   def map = Map(Internal -> "系統",
     Auto -> "自動註記",
     ManualInvalid -> "人工註記:無效資料",
@@ -39,7 +40,7 @@ object MonitorStatus {
   val ExceedRangeStat = "032"
 
   def getTagInfo(tag: String) = {
-    val (t, id) = tag.splitAt(tag.length-2)
+    val (t, id) = tag.splitAt(tag.length - 2)
     t match {
       case "0" =>
         TagInfo(StatusType.Internal, None, id)
@@ -62,7 +63,7 @@ object MonitorStatus {
         case StatusType.Internal =>
           if (isValid(tag))
             ""
-          else if (isCalbration(tag))
+          else if (isCalibration(tag))
             "calibration_status"
           else if (isMaintenance(tag))
             "maintain_status"
@@ -85,7 +86,7 @@ object MonitorStatus {
       else
         "normal"
 
-    if(statClass != "")
+    if (statClass != "")
       Seq(statClass, fgClass)
     else
       Seq(fgClass)
@@ -101,36 +102,45 @@ object MonitorStatus {
     val VALID_STATS = List(NormalStat, OverNormalStat, BelowNormalStat).map(getTagInfo)
 
     tagInfo match {
-      case TagInfo(StatusType.Internal, _,_) =>
+      case TagInfo(StatusType.Internal, _, _) =>
         VALID_STATS.contains(getTagInfo(s))
+
       case TagInfo(StatusType.Auto, Some(auditRule), _) =>
         if (auditRule(0).isLower)
           true
         else
           false
-      case StatusType.ManualValid =>
-          true
-      case StatusType.ManualInvalid =>
+
+      case TagInfo(StatusType.ManualValid, _, _) =>
+        true
+      case TagInfo(StatusType.ManualInvalid, _, _) =>
         false
+
     }
   }
 
-  def isCalbration(s: String) = {
-    val CALBRATION_STATS = List(ZeroCalibrationStat, SpanCalibrationStat,
-      CalibrationDeviation,CalibrationResume).map(getTagInfo)
+  def isCalibration(s: String): Boolean = {
+    val CALIBRATION_STATS = List(ZeroCalibrationStat, SpanCalibrationStat,
+      CalibrationDeviation, CalibrationResume).map(getTagInfo)
 
-    CALBRATION_STATS.contains(getTagInfo(s))
+    CALIBRATION_STATS.contains(getTagInfo(s))
   }
 
   def isMaintenance(s: String) = {
     getTagInfo(MaintainStat) == getTagInfo(s)
   }
 
-  def isManual(s:String) = {
+  def isManual(s: String) = {
     getTagInfo(s).statusType == StatusType.ManualInvalid || getTagInfo(s).statusType == StatusType.ManualInvalid
   }
+
   def isError(s: String) = {
-    !(isValid(s) || isCalbration(s) || isMaintenance(s))
+    !(isValid(s) || isCalibration(s) || isMaintenance(s))
+  }
+
+  def revert(tag:String): String = {
+    val tagInfo = getTagInfo(tag)
+    s"0${tagInfo.id}"
   }
 }
 

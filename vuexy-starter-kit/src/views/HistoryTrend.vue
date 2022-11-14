@@ -2,121 +2,88 @@
   <div>
     <b-card>
       <b-form @submit.prevent>
+        <b-form-group label="測點" label-for="monitor" label-cols-md="3">
+          <v-select
+            id="monitor"
+            v-model="form.monitors"
+            label="desc"
+            :reduce="mt => mt._id"
+            :options="monitors"
+            :close-on-select="false"
+            multiple
+          />
+        </b-form-group>
+        <b-form-group label="測項" label-for="monitorType" label-cols-md="3">
+          <v-select
+            id="monitorType"
+            v-model="form.monitorTypes"
+            label="desp"
+            :reduce="mt => mt._id"
+            :options="activatedMonitorTypes"
+            multiple
+            :close-on-select="false"
+          />
+        </b-form-group>
+        <b-form-group label="時間單位" label-for="reportUnit" label-cols-md="3">
+          <v-select
+            id="reportUnit"
+            v-model="form.reportUnit"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="reportUnits"
+          />
+        </b-form-group>
+        <b-form-group label="狀態" label-for="statusFilter" label-cols-md="3">
+          <v-select
+            id="statusFilter"
+            v-model="form.statusFilter"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="statusFilters"
+          />
+        </b-form-group>
+        <b-form-group label="圖表類型" label-for="chartType" label-cols-md="3">
+          <v-select
+            id="chartType"
+            v-model="form.chartType"
+            label="desc"
+            :reduce="ct => ct.type"
+            :options="chartTypes"
+          />
+        </b-form-group>
+        <b-form-group label="資料區間" label-for="dataRange" label-cols-md="3">
+          <date-picker
+            id="dataRange"
+            v-model="form.range"
+            :range="true"
+            type="datetime"
+            format="YYYY-MM-DD HH:mm"
+            value-type="timestamp"
+            :show-second="false"
+          />
+          <b-button
+            variant="gradient-primary"
+            class="ml-1"
+            size="md"
+            @click="setToday"
+            >今天</b-button
+          >
+          <b-button
+            variant="gradient-primary"
+            class="ml-1"
+            size="md"
+            @click="setLast2Days"
+            >前兩天</b-button
+          >
+          <b-button
+            variant="gradient-primary"
+            class="ml-1"
+            size="md"
+            @click="set3DayBefore"
+            >前三天</b-button
+          >
+        </b-form-group>
         <b-row>
-          <b-col cols="12">
-            <b-form-group label="測點" label-for="monitor" label-cols-md="3">
-              <v-select
-                id="monitor"
-                v-model="form.monitors"
-                label="desc"
-                :reduce="mt => mt._id"
-                :options="monitors"
-                :close-on-select="false"
-                multiple
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="測項"
-              label-for="monitorType"
-              label-cols-md="3"
-            >
-              <v-select
-                id="monitorType"
-                v-model="form.monitorTypes"
-                label="desp"
-                :reduce="mt => mt._id"
-                :options="activatedMonitorTypes"
-                multiple
-                :close-on-select="false"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="時間單位"
-              label-for="reportUnit"
-              label-cols-md="3"
-            >
-              <v-select
-                id="reportUnit"
-                v-model="form.reportUnit"
-                label="txt"
-                :reduce="dt => dt.id"
-                :options="reportUnits"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="狀態"
-              label-for="statusFilter"
-              label-cols-md="3"
-            >
-              <v-select
-                id="statusFilter"
-                v-model="form.statusFilter"
-                label="txt"
-                :reduce="dt => dt.id"
-                :options="statusFilters"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="圖表類型"
-              label-for="chartType"
-              label-cols-md="3"
-            >
-              <v-select
-                id="chartType"
-                v-model="form.chartType"
-                label="desc"
-                :reduce="ct => ct.type"
-                :options="chartTypes"
-              />
-            </b-form-group>
-          </b-col>
-          <b-col cols="12">
-            <b-form-group
-              label="資料區間"
-              label-for="dataRange"
-              label-cols-md="3"
-            >
-              <date-picker
-                id="dataRange"
-                v-model="form.range"
-                :range="true"
-                type="datetime"
-                format="YYYY-MM-DD HH:mm"
-                value-type="timestamp"
-                :show-second="false"
-              />
-              <b-button
-                variant="gradient-primary"
-                class="ml-1"
-                size="md"
-                @click="setToday"
-                >今天</b-button
-              >
-              <b-button
-                variant="gradient-primary"
-                class="ml-1"
-                size="md"
-                @click="setLast2Days"
-                >前兩天</b-button
-              >
-              <b-button
-                variant="gradient-primary"
-                class="ml-1"
-                size="md"
-                @click="set3DayBefore"
-                >前三天</b-button
-              >
-            </b-form-group>
-          </b-col>
-          <!-- submit and reset -->
           <b-col offset-md="3">
             <b-button
               v-ripple.400="'rgba(255, 255, 255, 0.15)'"

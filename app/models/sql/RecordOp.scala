@@ -29,7 +29,7 @@ class RecordOp @Inject()(sqlServer: SqlServer, calibrationOp: CalibrationOp, mon
   override def upsertRecord(doc: RecordList)(colName: String): Future[UpdateResult] = replaceRecord(doc)(colName)
 
   override def replaceRecord(doc: RecordList)(colName: String): Future[UpdateResult] = Future {
-    val ret = insert(colName, doc, true)
+    val ret = upsert(colName, doc)
     UpdateResult.acknowledged(ret, ret, null)
   }
 
@@ -62,6 +62,45 @@ class RecordOp @Inject()(sqlServer: SqlServer, calibrationOp: CalibrationOp, mon
            ([monitor], [time], $fields)
            VALUES
            (${doc._id.monitor}, ${doc._id.time}, $values)
+           """.update().apply()
+    }
+  }
+
+
+  private def upsert(colName: String, doc: RecordList): Int = {
+    implicit val session: DBSession = AutoSession
+    val tab: SQLSyntax = getTab(colName)
+
+    if (doc.mtDataList.isEmpty) {
+      sql"""
+           INSERT INTO $tab
+           ([monitor], [time])
+           VALUES
+           (${doc._id.monitor}, ${doc._id.time})
+           """.update().apply()
+    } else {
+      val fields = SQLSyntax.createUnsafely(doc.mtDataList.map(record => s"[${record.mtName}],[${record.mtName}_s]").mkString(","))
+
+      def toStr(v: Option[Double]) = {
+        if (v.isDefined)
+          v.get.toString
+        else
+          "NULL"
+      }
+
+      val updates = SQLSyntax.createUnsafely(doc.mtDataList.map(record => s"[${record.mtName}]=${toStr(record.value)}, [${record.mtName}_s]='${record.status}'").mkString(","))
+      val values = SQLSyntax.createUnsafely(doc.mtDataList.map(record => s"${toStr(record.value)}, '${record.status}'").mkString(","))
+      sql"""
+            Update $tab
+            Set $updates
+            Where [monitor] = ${doc._id.monitor} and [time] = ${doc._id.time}
+            IF(@@ROWCOUNT = 0)
+            BEGIN
+                INSERT INTO $tab
+                    ([monitor], [time], $fields)
+                VALUES
+                (${doc._id.monitor}, ${doc._id.time}, $values)
+            END
            """.update().apply()
     }
   }
@@ -197,9 +236,7 @@ class RecordOp @Inject()(sqlServer: SqlServer, calibrationOp: CalibrationOp, mon
   }
 
   override def upsertManyRecords(colName: String)(records: Seq[RecordList])(): Future[BulkWriteResult] = Future {
-    records.foreach(recordList => {
-      insert(colName, recordList, true)
-    })
+    records.foreach(upsert(colName, _))
     BulkWriteResult.unacknowledged()
   }
 
