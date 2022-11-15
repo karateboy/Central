@@ -30,11 +30,20 @@ object EngineAudit {
     import scala.collection.mutable.ListBuffer
     val updatedRecordList = ListBuffer.empty[RecordList]
 
+    def checkSailing(mtMap:Map[String, MtRecord]): Option[Boolean] =
+      for{
+        directionRecord <- mtMap.get(MonitorType.DIRECTION)
+        direction <- directionRecord.value if Math.abs(direction) < 0.001
+        speedRecord <- mtMap.get(MonitorType.SPEED)
+        speed <- speedRecord.value if speed > 0.1
+      } yield
+        true
+
     def checkTurn(lastMtMap: Map[String, MtRecord], mtMap: Map[String, MtRecord]): Option[String] =
       for {lastSpeedRecord <- lastMtMap.get(MonitorType.SPEED)
            speedRecord <- mtMap.get(MonitorType.SPEED)
            lastSpeed <- lastSpeedRecord.value
-           speed <- speedRecord.value if Math.abs(speed - lastSpeed) > param.setting.turnSpeedThreshold
+           speed <- speedRecord.value if speed - lastSpeed > param.setting.turnSpeedThreshold
            lastDirectionRecord <- lastMtMap.get(MonitorType.DIRECTION)
            directionRecord <- mtMap.get(MonitorType.DIRECTION)
            lastDirection <- lastDirectionRecord.value
@@ -69,6 +78,7 @@ object EngineAudit {
             val t = checkTurn(lastMtMap, mtMap).getOrElse("")
             val d = checkWindDirOffset(mtMap).getOrElse("U")
             val h = checkWindSpeed(mtMap).getOrElse("L")
+            val sailing = checkSailing(mtMap).getOrElse(false)
 
             def markRecordList(recordList: RecordList): Unit = {
               recordList.mtDataList.foreach(mtRecord => {
@@ -88,26 +98,27 @@ object EngineAudit {
               markRecordList(records.last)
             }
 
-
-            if (markCount == 0) {
-              (t, d, h) match {
-                case ("T", "D", "L") =>
-                  marked
-                case ("T", "D", "H") =>
-                  marked
-                case ("T", "U", "L") =>
-                  marked
-                case ("T", "U", "H") =>
-                  marked
-                case ("", "D", "L") =>
-                  tag = s"$t$d$h"
-                  markCount = 0
-                  markRecordList(records.last)
-                case _ =>
+            if(sailing){
+              if (markCount == 0) {
+                (t, d, h) match {
+                  case ("T", "D", "L") =>
+                    marked
+                  case ("T", "D", "H") =>
+                    marked
+                  case ("T", "U", "L") =>
+                    marked
+                  case ("T", "U", "H") =>
+                    marked
+                  case ("", "D", "L") =>
+                    tag = s"$t$d$h"
+                    markCount = 0
+                    markRecordList(records.last)
+                  case _ =>
+                }
+              } else {
+                markCount = markCount - 1
+                markRecordList(records.last)
               }
-            } else {
-              markCount = markCount - 1
-              markRecordList(records.last)
             }
           }
 
