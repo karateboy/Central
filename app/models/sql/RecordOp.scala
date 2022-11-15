@@ -281,6 +281,7 @@ class RecordOp @Inject()(sqlServer: SqlServer, calibrationOp: CalibrationOp, mon
     mtList = sqlServer.getColumnNames(HourCollection).filter(col => {
       !col.endsWith("_s") && col != "monitor" && col != "time"
     })
+
   }
 
   private def createTab(tabName: String)(implicit session: DBSession = AutoSession): Unit = {

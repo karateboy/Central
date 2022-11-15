@@ -95,6 +95,7 @@ class RuleController @Inject()(spikeRuleOp: SpikeRuleDB, constantRuleOp: Constan
       Ok(Json.obj("ok" -> true))
   }
 
+  case class AuditResult(ok:Boolean, count:Int)
   def executeEngineAudit = Security.Authenticated.async(BodyParsers.parse.json) {
     implicit request =>
       import EngineAudit._
@@ -105,9 +106,15 @@ class RuleController @Inject()(spikeRuleOp: SpikeRuleDB, constantRuleOp: Constan
           Future.successful(BadRequest(Json.obj("ok" -> false, "message" -> JsError.toJson(error))))
         },
         param => {
-          Logger.info(param.toString)
-          EngineAudit.audit(recordDB, monitorTypeDB)(param)
-          Future.successful(Ok(""))
+          // ensure calculated type
+          monitorTypeDB.calculatedMonitorTypes.foreach(mt=>{
+            recordDB.ensureMonitorType(mt._id)
+          })
+
+          for(ret<-EngineAudit.audit(recordDB, monitorTypeDB)(param)) yield {
+            implicit val write = Json.writes[AuditResult]
+            Ok(Json.toJson(AuditResult(true, ret.sum)))
+          }
         }
       )
   }

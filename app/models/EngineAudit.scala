@@ -22,18 +22,102 @@ object EngineAudit {
 
   def getStartEnd(range: Seq[Long]) = (new DateTime(range(0)), new DateTime(range(1)))
 
-  def audit(recordDB: RecordDB, monitorTypeDB: MonitorTypeDB)(param: EngineAuditParam) = {
+  def audit(recordDB: RecordDB, monitorTypeDB: MonitorTypeDB)(param: EngineAuditParam): Future[Seq[Int]] = {
     val (start, end) = getStartEnd(param.range)
+    val tabType = TableType.withName(param.tabType)
+    val colName = TableType.mapCollection(tabType)
 
-    val recordListF = recordDB.getRecordListFuture(recordDB.MinCollection)(startTime = start, endTime = end,
-      monitors = param.monitors)
-    val recordListWithCalculatedMt: Future[Seq[RecordList]] =
-      for (recordLists <- recordListF) yield {
-        monitorTypeDB.appendCalculatedMtRecord(recordLists, monitorTypeDB.calculatedMonitorTypes.map(_._id))
-        recordLists
-      }
+    import scala.collection.mutable.ListBuffer
+    val updatedRecordList = ListBuffer.empty[RecordList]
 
-    // Start audit
+    def checkTurn(lastMtMap: Map[String, MtRecord], mtMap: Map[String, MtRecord]): Option[String] =
+      for {lastSpeedRecord <- lastMtMap.get(MonitorType.SPEED)
+           speedRecord <- mtMap.get(MonitorType.SPEED)
+           lastSpeed <- lastSpeedRecord.value
+           speed <- speedRecord.value if Math.abs(speed - lastSpeed) > param.setting.turnSpeedThreshold
+           lastDirectionRecord <- lastMtMap.get(MonitorType.DIRECTION)
+           directionRecord <- mtMap.get(MonitorType.DIRECTION)
+           lastDirection <- lastDirectionRecord.value
+           direction <- directionRecord.value if Math.abs(direction - lastDirection) > param.setting.turnDirectionThreshold
+           } yield
+        "T"
+
+    def checkWindDirOffset(mtMap: Map[String, MtRecord]) =
+      for {
+        winDirOffsetRecord <- mtMap.get(MonitorType.WIND_DIRECTION_OFFSET)
+        winDirOffset <- winDirOffsetRecord.value if winDirOffset >= param.setting.directionOffsetThreshold
+      } yield
+        "D"
+
+    def checkWindSpeed(mtMap: Map[String, MtRecord]) =
+      for {
+        winSpeedRecord <- mtMap.get(MonitorType.WIN_SPEED)
+        winSpeed <- winSpeedRecord.value if winSpeed >= param.setting.windSpeedThreshold
+      } yield
+        "H"
+
+    def auditMonitor(m:String): Future[Int] =
+      for (recordLists <- recordDB.getRecordListFuture(colName)(start, end, Seq(m)))
+        yield {
+          monitorTypeDB.appendCalculatedMtRecord(recordLists, monitorTypeDB.calculatedMonitorTypes.map(_._id))
+
+          var markCount = 0
+          var tag = ""
+          for (records <- recordLists.sliding(2)) {
+            val lastMtMap = records.head.mtMap
+            val mtMap = records.last.mtMap
+            val t = checkTurn(lastMtMap, mtMap).getOrElse("")
+            val d = checkWindDirOffset(mtMap).getOrElse("U")
+            val h = checkWindSpeed(mtMap).getOrElse("L")
+
+            def markRecordList(recordList: RecordList): Unit = {
+              recordList.mtDataList.foreach(mtRecord => {
+                if (param.monitorTypes.contains(mtRecord.mtName)) {
+                  val tagInfo = MonitorStatus.getTagInfo(mtRecord.status)
+                  tagInfo.statusType = StatusType.Auto
+                  tagInfo.auditRule = Some(tag)
+                  mtRecord.status = tagInfo.toString
+                }
+              })
+              updatedRecordList.append(recordList)
+            }
+
+            def marked: Unit = {
+              tag = s"$t$d$h"
+              markCount = 6
+              markRecordList(records.last)
+            }
+
+
+            if (markCount == 0) {
+              (t, d, h) match {
+                case ("T", "D", "L") =>
+                  marked
+                case ("T", "D", "H") =>
+                  marked
+                case ("T", "U", "L") =>
+                  marked
+                case ("T", "U", "H") =>
+                  marked
+                case ("", "D", "L") =>
+                  tag = s"$t$d$h"
+                  markCount = 0
+                  markRecordList(records.last)
+                case _ =>
+              }
+            } else {
+              markCount = markCount - 1
+              markRecordList(records.last)
+            }
+          }
+
+          // Update DB
+          recordDB.upsertManyRecords(colName)(updatedRecordList)
+          recordLists.length
+        }
+
+    val ret = param.monitors.map(auditMonitor)
+    Future.sequence(ret)
   }
 
   case class RevertEngineAuditParam(monitors: Seq[String], tabType: String, monitorTypes: Seq[String], range: Seq[Long])
@@ -62,12 +146,15 @@ object EngineAudit {
         updatedRecordList.append(recordList)
     }
 
-    for (recordLists <- recordListF) yield {
-      recordLists.foreach(recordList => {
-        revertHelper(recordList)
-      })
-      recordDB.upsertManyRecords(colName)(updatedRecordList)
-      updatedRecordList.length
-    }
+    val ret =
+      for (recordLists <- recordListF) yield {
+        recordLists.foreach(recordList => {
+          revertHelper(recordList)
+        })
+
+        for (_ <- recordDB.upsertManyRecords(colName)(updatedRecordList)) yield
+          updatedRecordList.length
+      }
+    ret.flatMap(x => x)
   }
 }

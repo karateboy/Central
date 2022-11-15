@@ -182,7 +182,10 @@ export default Vue.extend({
       this.setLoading({ loading: true });
       try {
         const res = await axios.post(url, this.form);
-        if (res.status === 200) this.$bvModal.msgBoxOk('引擎排放註記完成');
+        if (res.status === 200) {
+          let ret = res.data;
+          this.$bvModal.msgBoxOk(`引擎排放註記完成 (${ret.count}筆狀態被註記)`);
+        }
       } catch (err) {
         throw new Error('failed to recalculate hour');
       } finally {
