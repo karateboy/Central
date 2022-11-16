@@ -26,8 +26,16 @@ object MonitorStatusFilter extends Enumeration {
         true
 
       case MonitorStatusFilter.Normal =>
-        stat == MonitorStatus.NormalStat
+        val tagInfo = MonitorStatus.getTagInfo(stat)
+        tagInfo match {
+          case TagInfo(StatusType.Internal, _, "10") =>
+            true
+          case TagInfo(StatusType.Auto, _, _) =>
+            false
 
+          case _ =>
+            false
+        }
       case MonitorStatusFilter.Calbration=>
         MonitorStatus.isCalibration(stat)
         

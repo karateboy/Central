@@ -44,7 +44,7 @@ offlineExport(Highcharts);
 const colors = [
   '#00FF00',
   '#FFD700',
-  '#FFA500',
+  '#6495ED',
   '#FF4500',
   '#800080',
   '#800000',

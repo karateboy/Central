@@ -30,15 +30,6 @@ object EngineAudit {
     import scala.collection.mutable.ListBuffer
     val updatedRecordList = ListBuffer.empty[RecordList]
 
-    def checkSailing(mtMap:Map[String, MtRecord]): Option[Boolean] =
-      for{
-        directionRecord <- mtMap.get(MonitorType.DIRECTION)
-        direction <- directionRecord.value if Math.abs(direction) < 0.001
-        speedRecord <- mtMap.get(MonitorType.SPEED)
-        speed <- speedRecord.value if speed > 0.1
-      } yield
-        true
-
     def checkTurn(lastMtMap: Map[String, MtRecord], mtMap: Map[String, MtRecord]): Option[String] =
       for {lastSpeedRecord <- lastMtMap.get(MonitorType.SPEED)
            speedRecord <- mtMap.get(MonitorType.SPEED)
@@ -65,7 +56,14 @@ object EngineAudit {
       } yield
         "H"
 
-    def auditMonitor(m:String): Future[Int] =
+    def checkSailing(mtMap: Map[String, MtRecord]) =
+      for {
+        directionRecord <- mtMap.get(MonitorType.DIRECTION)
+        direction <- directionRecord.value if direction >= 0.0001
+      } yield
+        true
+
+    def auditMonitor(m: String): Future[Int] =
       for (recordLists <- recordDB.getRecordListFuture(colName)(start, end, Seq(m)))
         yield {
           monitorTypeDB.appendCalculatedMtRecord(recordLists, monitorTypeDB.calculatedMonitorTypes.map(_._id))
@@ -75,10 +73,11 @@ object EngineAudit {
           for (records <- recordLists.sliding(2)) {
             val lastMtMap = records.head.mtMap
             val mtMap = records.last.mtMap
+
+            val sailing = checkSailing(mtMap).getOrElse(false)
             val t = checkTurn(lastMtMap, mtMap).getOrElse("")
             val d = checkWindDirOffset(mtMap).getOrElse("U")
             val h = checkWindSpeed(mtMap).getOrElse("L")
-            val sailing = checkSailing(mtMap).getOrElse(false)
 
             def markRecordList(recordList: RecordList): Unit = {
               recordList.mtDataList.foreach(mtRecord => {
@@ -98,8 +97,9 @@ object EngineAudit {
               markRecordList(records.last)
             }
 
-            if(sailing){
-              if (markCount == 0) {
+
+            if (markCount == 0) {
+              if (sailing)
                 (t, d, h) match {
                   case ("T", "D", "L") =>
                     marked
@@ -115,7 +115,8 @@ object EngineAudit {
                     markRecordList(records.last)
                   case _ =>
                 }
-              } else {
+            } else {
+              if (sailing) {
                 markCount = markCount - 1
                 markRecordList(records.last)
               }

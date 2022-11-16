@@ -223,6 +223,10 @@ export default Vue.extend({
           id: 'M',
           txt: '人工註記:無效資料',
         },
+        {
+          id: 'N',
+          txt: '人工註記:排除',
+        },
       ],
       display: false,
       columns: Array<any>(),
