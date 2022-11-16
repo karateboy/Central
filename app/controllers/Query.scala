@@ -450,7 +450,8 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
           } else {
             for {
               period_start <- getPeriods(start, end, period)
-              records = periodSlice(period_start, period_start + period) if records.length > 0
+              rawRecords = periodSlice(period_start, period_start + period) if rawRecords.length > 0
+              records = rawRecords.filter( r => MonitorStatusFilter.isMatched(statusFilter, r.status))
             } yield {
               if (mt == MonitorType.WIN_DIRECTION) {
                 val windDir = records
@@ -535,8 +536,9 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
     }
     val yAxisIndexList = yAxisGroupMap.toList.zipWithIndex
 
-    def getSeriesFuture(): Future[ScatterSeries] =
-        for (records <- recordOp.getRecordListFuture(TableType.mapCollection(tabType))(start, end, monitors)) yield {
+    def getSeriesFuture() = {
+      val seqFuture = monitors.map(m => {
+        for (records <- recordOp.getRecordListFuture(TableType.mapCollection(tabType))(start, end, Seq(m))) yield {
           monitorTypeOp.appendCalculatedMtRecord(records, monitorTypes)
           val data = records.flatMap(rec => {
             for {mt1 <- rec.mtMap.get(monitorTypes(0)) if MonitorStatusFilter.isMatched(statusFilter, mt1.status)
@@ -544,9 +546,14 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
                  mt1Value <- mt1.value
                  mt2Value <- mt2.value} yield Seq(mt1Value, mt2Value)
           })
-          ScatterSeries(name = monitors.map(monitorOp.map(_).desc).mkString("+"), data = data)
+          ScatterSeries(name = s"${monitorOp.map(m).desc}", data = data)
         }
-
+      })
+      for(ret<-Future.sequence(seqFuture)) yield {
+        val combinedData = ret.flatMap(series=>series.data)
+        ret :+ ScatterSeries(name = monitors.map(m => s"${monitorOp.map(m).desc}").mkString("+"), data = combinedData)
+      }
+    }
 
     val mt1 = monitorTypeOp.map(monitorTypes(0))
     val mt2 = monitorTypeOp.map(monitorTypes(1))
@@ -556,7 +563,7 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
         Map("text" -> title),
         ScatterAxis(Title(true, s"${mt1.desp}(${mt1.unit})"), getAxisLines(monitorTypes(0))),
         ScatterAxis(Title(true, s"${mt2.desp}(${mt2.unit})"), getAxisLines(monitorTypes(1))),
-        Seq(series), Some(downloadFileName))
+        series, Some(downloadFileName))
   }
 
   def historyData(monitorStr: String, monitorTypeStr: String, tabTypeStr: String,

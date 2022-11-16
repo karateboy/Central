@@ -234,8 +234,10 @@ export default Vue.extend({
         };
         let series = ret.series as Array<any>;
         if (series[0].data.length !== 0) {
-          series[0].regression = true;
-          series[0].regressionSettings = {
+          let combinedIndex = series.length - 1;
+          series[combinedIndex].regression = true;
+          series[combinedIndex].visible = false;
+          series[combinedIndex].regressionSettings = {
             type: this.form.regressionSettings.type,
             name: '%eq R^2:%r2',
           };
