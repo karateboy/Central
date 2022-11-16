@@ -292,7 +292,7 @@ export default Vue.extend({
       { text: '濃度柱狀圖', value: 'bar' },
       { text: '熱視圖', value: 'heatmap' },
     ];
-    let heatmapOption = { dissipating: false, radius: 50 };
+    let heatmapOption = { dissipating: false, radius: 100, maxIntensity: 100 };
     return {
       statusFilters: [
         { id: 'all', txt: '全部' },
@@ -420,10 +420,11 @@ export default Vue.extend({
             speed !== undefined &&
             value !== undefined
           ) {
-            ret.push({
-              location: new google.maps.LatLng({ lat, lng }),
-              weight: value * speed,
-            });
+            if (speed > 0.5)
+              ret.push({
+                location: new google.maps.LatLng({ lat, lng }),
+                weight: value * speed,
+              });
           }
         }
         return ret;
@@ -458,7 +459,10 @@ export default Vue.extend({
     ...mapMutations(['setLoading']),
     async query() {
       const url = `/ShipRoute/${this.form.monitor}/${this.form.dataType}/${this.form.statusFilter}/${this.form.ais}/${this.form.range[0]}/${this.form.range[1]}`;
-
+      let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
+      let levels = mtCase.levels ?? [1, 2, 3, 4, 5];
+      this.heatmapOption.maxIntensity = levels[levels.length - 1] * 10;
+      this.heatmapOption.radius = this.form.dataType === 'hour' ? 100 : 50;
       try {
         this.setLoading({ loading: true });
         let res = await axios.get(url);
@@ -482,11 +486,11 @@ export default Vue.extend({
     getLevelIndex(recordList: RecordList): number {
       let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
       let value = this.getRecordValue(recordList, this.form.monitorType);
-      const levels = mtCase.levels ?? [1, 2, 3, 4, 5];
+      const levels = mtCase.levels ?? [1, 2, 3, 4, 5, 6];
       let v = value ?? 0;
-      for (let i = 0; i < levels.length; i++) if (v <= levels[i]) return i;
+      for (let i = 0; i < levels.length; i++) if (v < levels[i]) return i;
 
-      return levels.length - 1;
+      return levels.length;
     },
     getRecordColor(recordList: RecordList): string {
       const colors = ['green', 'yellow', 'orange', 'red', 'purple', 'maroon'];
