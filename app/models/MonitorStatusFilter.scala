@@ -30,8 +30,8 @@ object MonitorStatusFilter extends Enumeration {
         tagInfo match {
           case TagInfo(StatusType.Internal, _, "10") =>
             true
-          case TagInfo(StatusType.Auto, _, _) =>
-            false
+          case TagInfo(StatusType.Auto, _, "10") =>
+            true
 
           case _ =>
             false

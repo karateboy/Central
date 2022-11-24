@@ -113,6 +113,7 @@ object MonitorStatus {
 
       case TagInfo(StatusType.ManualValid, _, _) =>
         true
+
       case TagInfo(StatusType.ManualInvalid, _, _) =>
         false
 

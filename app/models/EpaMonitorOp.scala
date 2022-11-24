@@ -6,7 +6,7 @@ import javax.inject.{Inject, Singleton}
 
 @Singleton
 class EpaMonitorOp @Inject()(configuration: Configuration, monitorTypeDB: MonitorTypeDB) {
-  def getEpaMonitors(): Option[Seq[Monitor]] = {
+  def getEpaMonitors: Option[Seq[Monitor]] = {
     def toMonitor(config: Configuration) = {
       val id = config.getInt("id").get
       val name = config.getString("name").get
@@ -21,10 +21,10 @@ class EpaMonitorOp @Inject()(configuration: Configuration, monitorTypeDB: Monito
          monitors <- config.getConfigSeq("monitors")
          }
     yield
-      monitors.map(toMonitor(_))
+      monitors.map(toMonitor)
   }
 
-  val map: Map[Int, Monitor] = getEpaMonitors().map(
+  val map: Map[Int, Monitor] = getEpaMonitors.map(
     epaMonitors => epaMonitors.map(m => m.epaId.get -> m).toMap)
     .getOrElse(Map.empty[Int, Monitor])
 }

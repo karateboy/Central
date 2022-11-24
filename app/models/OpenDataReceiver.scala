@@ -23,7 +23,7 @@ class OpenDataReceiver @Inject()(monitorTypeOp: MonitorTypeDB, monitorOp: Monito
   import OpenDataReceiver._
   import com.github.nscala_time.time.Imports._
 
-  val epaMonitors: Seq[Monitor] = epaMonitorOp.getEpaMonitors().getOrElse(Seq.empty[Monitor])
+  val epaMonitors: Seq[Monitor] = epaMonitorOp.getEpaMonitors.getOrElse(Seq.empty[Monitor])
 
   for(epaMonitor <- epaMonitors)
     Logger.info(s"OpenDataReceiver set up to receive $epaMonitor")
@@ -197,14 +197,14 @@ class OpenDataReceiver @Inject()(monitorTypeOp: MonitorTypeDB, monitorOp: Monito
       }
     }
 
-    if(start.toString("yyyy-M") == DateTime.now().toString("yyyy-M"))
+    //if(start.toString("yyyy-M") == DateTime.now().toString("yyyy-M"))
       getThisMonth(0)
-    else{
-      getMonthData(start.getYear(), start.getMonthOfYear(), 0)
-    }
+    //else{
+    //  getMonthData(start.getYear(), start.getMonthOfYear(), 0)
+    //}
   }
 
-  override def postStop = {
+  override def postStop: Unit = {
     for(timer<-timerOpt)
       timer.cancel()
   }

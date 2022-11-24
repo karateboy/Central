@@ -23,7 +23,8 @@ class HomeController @Inject()(environment: play.api.Environment,
                                emailTargetOp: EmailTargetDB,
                                sysConfig: SysConfigDB, recordDB: RecordDB,
                                instrumentStatusTypeDB: InstrumentStatusTypeDB,
-                               @Named("dataCollectManager") manager: ActorRef) extends Controller {
+                               @Named("dataCollectManager") manager: ActorRef,
+                              @Named("openDataReceiver") openDataReceiver: ActorRef) extends Controller {
 
   val title = "資料擷取器"
 
@@ -594,6 +595,15 @@ class HomeController @Inject()(environment: play.api.Environment,
 
     manager ! ForwardMinRecord(start, end)
     manager ! ForwardHourRecord(start, end)
+
+    Ok(Json.obj("ok" -> true))
+  }
+
+  def reloadEpaData(startNum: Long, endNum: Long) = Security.Authenticated {
+    val start = new DateTime(startNum)
+    val end = new DateTime(endNum)
+
+    openDataReceiver ! OpenDataReceiver.ReloadEpaData(start, end)
 
     Ok(Json.obj("ok" -> true))
   }
