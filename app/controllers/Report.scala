@@ -292,11 +292,15 @@ class Report @Inject()(monitorDB: MonitorDB, monitorTypeOp: MonitorTypeDB, recor
             start + 1.month
 
         val outputType = OutputType.withName(outputTypeStr)
-        val recordList = recordOp.getRecordMap(recordOp.HourCollection)(monitor, List(mt), start, end)(mt)
-        val timePair = recordList.map { r => r.time -> r }
+        val recordMap = if(mt == MonitorType.WIN_DIRECTION || mt == MonitorType.WIN_SPEED)
+          recordOp.getRecordMap(recordOp.HourCollection)(monitor, List(MonitorType.WIN_SPEED, MonitorType.WIN_DIRECTION), start, end)
+        else
+          recordOp.getRecordMap(recordOp.HourCollection)(monitor, List(mt), start, end)
+
+        val timePair = recordMap(mt).map { r => r.time -> r }
         val timeMap = Map(timePair: _*)
 
-        def getHourPeriodStat(records: Seq[Record], hourList: List[DateTime]) = {
+        def getHourPeriodStat(records: Seq[Record]) = {
           val values = records.filter(rec => MonitorStatusFilter.isMatched(MonitorStatusFilter.ValidData, rec.status))
             .flatMap { r => r.value }
           if (values.length == 0)
@@ -316,7 +320,8 @@ class Report @Inject()(monitorDB: MonitorDB, monitorTypeOp: MonitorTypeDB, recor
 
             val avg = if (mt == MonitorType.WIN_DIRECTION) {
               val windDir = records
-              val windSpeed = hourList.map(timeMap)
+              val hourList = windDir.map(_.time)
+              val windSpeed = hourList.flatMap(hr=>timeMap.get(hr))
               windAvg(windSpeed, windDir)
             } else {
               if (count != 0)
@@ -342,12 +347,12 @@ class Report @Inject()(monitorDB: MonitorDB, monitorTypeOp: MonitorTypeDB, recor
           } yield {
             h -> getHourPeriodStat(hourList.flatMap {
               timeMap.get
-            }, hourList)
+            })
           }
         val hourStatMap = Map(hourValues: _*)
-        val dayStatMap = query.getPeriodStatReportMap(Map(mt -> recordList), 1.day)(start, start + 1.month)
+        val dayStatMap = query.getPeriodStatReportMap(recordMap, 1.day)(start, start + 1.month)
         val overallPeriod: Period = new Period(start, start + 1.month)
-        val overallStat = query.getPeriodStatReportMap(Map(mt -> recordList), overallPeriod)(start, start + 1.month)(mt)(start)
+        val overallStat = query.getPeriodStatReportMap(recordMap, overallPeriod)(start, start + 1.month)(mt)(start)
         var columns = Seq.empty[String]
         for (i <- 0 to 23) {
           columns = columns.:+(s"$i:00")
