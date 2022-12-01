@@ -6,7 +6,7 @@ object StatusType extends Enumeration {
   val ManualInvalid = Value("M")
   val ManualValid = Value("m")
 
-  def map = Map(Internal -> "系統",
+  def map: Map[StatusType.Value, String] = Map(Internal -> "系統",
     Auto -> "自動註記",
     ManualInvalid -> "人工註記:無效資料",
     ManualValid -> "人工註記:有效資料"
@@ -18,7 +18,7 @@ case class MonitorStatus(_id: String, desp: String) {
 }
 
 case class TagInfo(var statusType: StatusType.Value, var auditRule: Option[String], id: String) {
-  override def toString = {
+  override def toString: String = {
     if ((statusType != StatusType.Internal)
       && auditRule.isDefined)
       auditRule.get + id
@@ -39,7 +39,7 @@ object MonitorStatus {
   val MaintainStat = "031"
   val ExceedRangeStat = "032"
 
-  def getTagInfo(tag: String) = {
+  def getTagInfo(tag: String): TagInfo = {
     val (t, id) = tag.splitAt(tag.length - 2)
     t match {
       case "0" =>
@@ -56,7 +56,7 @@ object MonitorStatus {
     }
   }
 
-  def getCssClassStr(tag: String, overInternal: Boolean = false, overLaw: Boolean = false) = {
+  def getCssClassStr(tag: String, overInternal: Boolean = false, overLaw: Boolean = false): Seq[String] = {
     val info = getTagInfo(tag)
     val statClass =
       info.statusType match {
@@ -92,12 +92,7 @@ object MonitorStatus {
       Seq(fgClass)
   }
 
-  def switchTagToInternal(tag: String) = {
-    val info = getTagInfo(tag)
-    '0' + info.id
-  }
-
-  def isValid(s: String) = {
+  def isValid(s: String): Boolean = {
     val tagInfo = getTagInfo(s)
     val VALID_STATS = List(NormalStat, OverNormalStat, BelowNormalStat).map(getTagInfo)
 
@@ -105,11 +100,8 @@ object MonitorStatus {
       case TagInfo(StatusType.Internal, _, _) =>
         VALID_STATS.contains(getTagInfo(s))
 
-      case TagInfo(StatusType.Auto, Some(auditRule), _) =>
-        if (auditRule(0).isLower)
-          true
-        else
-          false
+      case TagInfo(StatusType.Auto, _, _) =>
+        true
 
       case TagInfo(StatusType.ManualValid, _, _) =>
         true
@@ -127,19 +119,16 @@ object MonitorStatus {
     CALIBRATION_STATS.contains(getTagInfo(s))
   }
 
-  def isMaintenance(s: String) = {
+  def isMaintenance(s: String): Boolean =
     getTagInfo(MaintainStat) == getTagInfo(s)
-  }
 
-  def isManual(s: String) = {
+  def isManual(s: String): Boolean =
     getTagInfo(s).statusType == StatusType.ManualInvalid || getTagInfo(s).statusType == StatusType.ManualInvalid
-  }
 
-  def isError(s: String) = {
+  def isError(s: String): Boolean =
     !(isValid(s) || isCalibration(s) || isMaintenance(s))
-  }
 
-  def revert(tag:String): String = {
+  def revert(tag: String): String = {
     val tagInfo = getTagInfo(tag)
     s"0${tagInfo.id}"
   }

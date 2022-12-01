@@ -19,7 +19,7 @@
                 :options="activatedMonitorTypes" />
             </b-col>
             <b-col class="align-middle">
-              <b-form-checkbox v-model="form.ais">顯示AIS軌跡</b-form-checkbox>
+              <b-form-checkbox v-model="form.ais">顯示AIS軌跡 (點擊船隻圖示顯示個別軌跡)</b-form-checkbox>
             </b-col>
           </b-row>
         </b-form-group>
@@ -113,8 +113,10 @@
               shipRouteResult.monitorRecords.length &&
               form.graphType === 'bar'
             ">
-              <GmapMarker v-for="(record, idx) in getValidRecords(shipRouteResult.monitorRecords)" :key="`mtValue_${idx}`"
-                :position="getRecordPos(record)" :icon="getRecordIcon(record)" :title="getRecordExplain(record)" />
+              <GmapMarker v-for="(record, idx) in getValidRecords(
+                shipRouteResult.monitorRecords,
+              )" :key="`mtValue_${idx}`" :position="getRecordPos(record)" :icon="getRecordIcon(record)"
+                :title="getRecordExplain(record)" />
             </div>
             <div v-if="
               mapLoaded &&
@@ -125,10 +127,12 @@
               <gmap-heatmap-layer :data="heatmapMarker" :options="heatmapOption" />
             </div>
             <div v-if="form.ais">
-              <GmapMarker v-for="(ship, idx) in shipRouteResult.shipDataList" :key="`marker${idx + 1}`"
-                :position="ship.route[0]" :clickable="true" :title="getShipTitle(ship)" :icon="shipIcon" />
-              <GmapPolyline v-for="(ship, idx) in shipRouteResult.shipDataList" :key="`route${idx}`" stroke-color="blue"
-                :path="ship.route" />
+              <div v-for="(ship, idx) in shipRouteResult.shipDataList" :key="`trace${idx}`">
+                <GmapPolyline stroke-color="blue" :path="displaySelectedRoute(ship, idx)" />
+                <GmapMarker v-for="(pos, markerIdx) in displaySelectedRoute(ship, idx)" :key="`marker${markerIdx}`"
+                  :position="pos" :clickable="true" :title="getShipTitle(ship, markerIdx)"
+                  :icon="getShipIcon(markerIdx)" @click="selectedMarker = idx" />
+              </div>
             </div>
           </div>
         </GmapMap>
@@ -226,6 +230,7 @@ export default Vue.extend({
       mapOption,
       mapLoaded,
       heatmapOption,
+      selectedMarker: -1,
     };
   },
   computed: {
@@ -298,22 +303,6 @@ export default Vue.extend({
         }
       });
     },
-    shipIcon(): any {
-      if (!this.mapLoaded) return {};
-
-      return {
-        path: faShip.icon[4] as string,
-        fillColor: '#0000ff',
-        fillOpacity: 1,
-        anchor: new google.maps.Point(
-          faShip.icon[0] / 2, // width
-          faShip.icon[1], // height
-        ),
-        strokeWeight: 1,
-        strokeColor: '#ffffff',
-        scale: 0.04,
-      };
-    },
     heatmapMarker(): Array<any> {
       if (this.mapLoaded && this.shipRouteResult.monitorRecords.length !== 0) {
         let ret = new Array<any>();
@@ -371,6 +360,7 @@ export default Vue.extend({
       let levels = mtCase.levels ?? [1, 2, 3, 4, 5];
       this.heatmapOption.maxIntensity = levels[levels.length - 1] * 10;
       this.heatmapOption.radius = this.form.dataType === 'hour' ? 100 : 50;
+      this.selectedMarker = -1;
       try {
         this.setLoading({ loading: true });
         let res = await axios.get(url);
@@ -492,23 +482,61 @@ export default Vue.extend({
         mtCase.prec,
       )}${mtCase.unit}`;
     },
-    getShipTitle(ship: ShipData): string {
-      if (ship.route.length !== 0) {
-        let len = ship.route.length;
-        let dt = ship.route[len - 1].date;
-        if (dt !== undefined)
-          return `${ship.name}: 最後更新:${moment(dt).format('lll')}`;
-      }
+    getShipTitle(ship: ShipData, idx: number): string {
+      let pos = ship.route[idx];
+      let dt = pos.date;
+      let speed = pos.speed ?? 0;
+      if (dt !== undefined)
+        return `${ship.name}: 速度(${speed}) ${moment(dt).format('lll')}`;
 
-      return `${ship.name}`;
+      return `${ship.name}: 速度(${speed})`;
     },
     getValidRecords(monitorRecords: Array<RecordList>): Array<RecordList> {
-      return monitorRecords.filter(recordList=>{
+      return monitorRecords.filter(recordList => {
         let lat = this.getRecordValue(recordList, 'LAT');
         let lng = this.getRecordValue(recordList, 'LNG');
         let v = this.getRecordValue(recordList, this.form.monitorType);
         return lat !== undefined && lng !== undefined && v !== undefined;
       });
+    },
+    getShipIcon(idx: number): any {
+      if (!this.mapLoaded) return {};
+
+      if (idx === 0)
+        return {
+          path: faShip.icon[4] as string,
+          fillColor: '#0000ff',
+          fillOpacity: 1,
+          anchor: new google.maps.Point(
+            faShip.icon[0] / 2, // width
+            faShip.icon[1], // height
+          ),
+          strokeWeight: 1,
+          strokeColor: '#ffffff',
+          scale: 0.04,
+        };
+      else
+        return {
+          path: faShip.icon[4] as string,
+          fillColor: '#0000ff',
+          fillOpacity: 1,
+          anchor: new google.maps.Point(
+            faShip.icon[0] / 2, // width
+            faShip.icon[1], // height
+          ),
+          strokeWeight: 1,
+          strokeColor: '#ffffff',
+          scale: 0.01,
+        };
+    },
+    displaySelectedRoute(ship: ShipData, idx: number): Array<Position> {
+      if (idx === this.selectedMarker) {
+        return ship.route;
+      } else {
+        let posArray = new Array<Position>();
+        posArray.push(ship.route[0]);
+        return posArray;
+      }
     }
   },
 });

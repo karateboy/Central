@@ -20,7 +20,7 @@ object MonitorStatusFilter extends Enumeration {
     InvalidData -> "無效數據",
     ValidData -> "有效數據")
 
-  def isMatched(msf: MonitorStatusFilter.Value, stat: String) = {
+  def isMatched(msf: MonitorStatusFilter.Value, stat: String): Boolean = {
     msf match {
       case MonitorStatusFilter.All =>
         true
@@ -30,8 +30,12 @@ object MonitorStatusFilter extends Enumeration {
         tagInfo match {
           case TagInfo(StatusType.Internal, _, "10") =>
             true
-          case TagInfo(StatusType.Auto, _, "10") =>
-            true
+
+          case TagInfo(StatusType.Auto, Some(auditRule), _) =>
+            if (auditRule(0).isLower)
+              true
+            else
+              false
 
           case _ =>
             false

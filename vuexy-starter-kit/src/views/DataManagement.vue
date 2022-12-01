@@ -5,27 +5,65 @@
         <b-row>
           <b-col cols="12">
             <b-form-group label="測點" label-for="monitor" label-cols-md="3">
-              <v-select id="monitor" v-model="form.monitors" label="desc" :reduce="mt => mt._id"
-                :options="monitorOfNoEPA" :close-on-select="false" multiple />
+              <v-select
+                id="monitor"
+                v-model="form.monitors"
+                label="desc"
+                :reduce="mt => mt._id"
+                :options="monitorOfNoEPA"
+                :close-on-select="false"
+                multiple
+              />
             </b-form-group>
           </b-col>
           <b-col cols="12">
-            <b-form-group label="資料來源" label-for="dataType" label-cols-md="3">
-              <v-select id="dataType" v-model="form.dataType" label="txt" :reduce="dt => dt.id" :options="dataTypes" />
+            <b-form-group
+              label="資料來源"
+              label-for="dataType"
+              label-cols-md="3"
+            >
+              <v-select
+                id="dataType"
+                v-model="form.dataType"
+                label="txt"
+                :reduce="dt => dt.id"
+                :options="dataTypes"
+              />
             </b-form-group>
           </b-col>
           <b-col cols="12">
-            <b-form-group label="資料區間" label-for="dataRange" label-cols-md="3">
-              <date-picker id="dataRange" v-model="form.range" :range="true" type="datetime" format="YYYY-MM-DD HH:mm"
-                value-type="timestamp" :show-second="false" />
+            <b-form-group
+              label="資料區間"
+              label-for="dataRange"
+              label-cols-md="3"
+            >
+              <date-picker
+                id="dataRange"
+                v-model="form.range"
+                :range="true"
+                type="datetime"
+                format="YYYY-MM-DD HH:mm"
+                value-type="timestamp"
+                :show-second="false"
+              />
             </b-form-group>
           </b-col>
           <!-- submit and reset -->
           <b-col offset-md="3">
-            <b-button v-ripple.400="'rgba(255, 255, 255, 0.15)'" variant="primary" class="mr-1" @click="recalculate">
+            <b-button
+              v-ripple.400="'rgba(255, 255, 255, 0.15)'"
+              variant="primary"
+              class="mr-1"
+              @click="recalculate"
+            >
               重新計算
             </b-button>
-            <b-button v-ripple.400="'rgba(255, 255, 255, 0.15)'" variant="primary" class="mr-1" @click="reloadEPA">
+            <b-button
+              v-ripple.400="'rgba(255, 255, 255, 0.15)'"
+              variant="primary"
+              class="mr-1"
+              @click="reloadEPA"
+            >
               回補環保署測站資料
             </b-button>
           </b-col>
@@ -112,6 +150,4 @@ export default Vue.extend({
 });
 </script>
 
-<style>
-
-</style>
+<style></style>
