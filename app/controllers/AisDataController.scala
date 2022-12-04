@@ -4,7 +4,7 @@ import com.github.nscala_time.time.Imports._
 import models.ModelHelper.errorHandler
 import models._
 import play.api.libs.json.Json
-import play.api.mvc.Controller
+import play.api.mvc.{Action, AnyContent, Controller}
 
 import java.util.Date
 import javax.inject.Inject
@@ -20,7 +20,7 @@ class AisDataController @Inject()(aisDB: AisDB, monitorDB: MonitorDB, recordDB: 
 
   case class ShipRouteResult(monitorRecords: Seq[RecordList], shipDataList: Seq[ShipData])
 
-  def getShipRoute(monitor: String, tabTypeStr: String, statusFilterName: String, ais: Boolean, start: Long, end: Long) = Security.Authenticated.async {
+  def getShipRoute(monitor: String, tabTypeStr: String, statusFilterName: String, ais: Boolean, start: Long, end: Long): Action[AnyContent] = Security.Authenticated.async {
     val tabType = TableType.withName(tabTypeStr)
     val startTime = new DateTime(start)
     val endTime = new DateTime(end)
@@ -56,7 +56,7 @@ class AisDataController @Inject()(aisDB: AisDB, monitorDB: MonitorDB, recordDB: 
               val lat = shipMap("LAT").toDouble
               val lng = shipMap("LON").toDouble
               val date = shipMap.get("TIMESTAMP").map(DateTime.parse).map(_.plusHours(8).toDate)
-              val speed = shipMap.get("SPEED").map(_.toDouble)
+              val speed = shipMap.get("SPEED").map(_.toDouble/10)
               shipRoute.append(Position(lat = lat, lng = lng, date = date, speed = speed))
             })
         })

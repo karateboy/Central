@@ -9,6 +9,7 @@ import play.api.mvc._
 
 import java.util.Date
 import javax.inject._
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -94,7 +95,7 @@ class Realtime @Inject()
 
   case class LatestAisData(enable: Boolean, aisData: Seq[ParsedAisData])
 
-  def getLatestAisData(): Action[AnyContent] = Security.Authenticated.async {
+  def getLatestAisData: Action[AnyContent] = Security.Authenticated.async {
     implicit request =>
       implicit val w1 = Json.writes[ParsedAisData]
       implicit val write = Json.writes[LatestAisData]
@@ -119,7 +120,7 @@ class Realtime @Inject()
               val monitorLng = monitorDataMap.get(ais.monitor).flatMap(_.get(MonitorType.LNG).flatMap(_.value))
               ParsedAisData(monitor = ais.monitor, time = ais.time, ships = shipList, lat = monitorLat, lng = monitorLng)
             })
-            Ok(Json.toJson(LatestAisData(true, parsed)))
+            Ok(Json.toJson(LatestAisData(enable = true, parsed)))
           }
         }
       ret.flatMap(x => x)
@@ -127,7 +128,7 @@ class Realtime @Inject()
 
   case class AisDataResp(columns: Seq[String], ships: Seq[Map[String, String]])
 
-  def getNearestAisDataInThePast(monitor: String, respType: String, startNum: Long) = Security.Authenticated.async {
+  def getNearestAisDataInThePast(monitor: String, respType: String, startNum: Long): Action[AnyContent] = Security.Authenticated.async {
     val start = new DateTime(startNum).toDate
     val f = aisDB.getNearestAisDataInThePast(monitor, respType, start)
     f onFailure errorHandler
@@ -137,8 +138,7 @@ class Realtime @Inject()
         Ok(Json.toJson(AisDataResp(Seq.empty[String], Seq.empty[Map[String, String]])))
       else {
         val shipList = Json.parse(ret.get.json).validate[Seq[Map[String, String]]].get
-        import collection.mutable.Set
-        val columnSet = Set.empty[String]
+        val columnSet = mutable.Set.empty[String]
         shipList.foreach(_.keys.foreach(columnSet.add))
         Ok(Json.toJson(AisDataResp(columnSet.toSeq, shipList)))
       }
@@ -147,7 +147,7 @@ class Realtime @Inject()
 
   case class LatestMonitorData(monitorTypes: Seq[String], monitorData: Seq[RecordList])
 
-  def getLatestMonitorData() = Security.Authenticated.async {
+  def getLatestMonitorData: Action[AnyContent] = Security.Authenticated.async {
     implicit request =>
       val userInfo = request.user
       val ret =

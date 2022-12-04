@@ -487,9 +487,9 @@ export default Vue.extend({
       let dt = pos.date;
       let speed = pos.speed ?? 0;
       if (dt !== undefined)
-        return `${ship.name}: 速度(${speed}) ${moment(dt).format('lll')}`;
+        return `${ship.name}: ${speed}節 ${moment(dt).format('lll')}`;
 
-      return `${ship.name}: 速度(${speed})`;
+      return `${ship.name}: ${speed}節`;
     },
     getValidRecords(monitorRecords: Array<RecordList>): Array<RecordList> {
       return monitorRecords.filter(recordList => {
@@ -517,26 +517,28 @@ export default Vue.extend({
         };
       else
         return {
-          path: faShip.icon[4] as string,
-          fillColor: '#0000ff',
+          path: faCircle.icon[4] as string,
+          fillColor: '#ffffff',
           fillOpacity: 1,
           anchor: new google.maps.Point(
-            faShip.icon[0] / 2, // width
-            faShip.icon[1], // height
-          ),
+          faCircle.icon[0] / 2, // width
+          faCircle.icon[1] / 2, // height
+        ),
           strokeWeight: 1,
           strokeColor: '#ffffff',
-          scale: 0.01,
+          scale: 0.03,
         };
     },
     displaySelectedRoute(ship: ShipData, idx: number): Array<Position> {
+      return ship.route;
+      /*
       if (idx === this.selectedMarker) {
         return ship.route;
       } else {
         let posArray = new Array<Position>();
         posArray.push(ship.route[0]);
         return posArray;
-      }
+      }*/
     }
   },
 });
