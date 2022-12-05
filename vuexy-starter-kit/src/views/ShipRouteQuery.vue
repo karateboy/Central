@@ -128,7 +128,7 @@
             </div>
             <div v-if="form.ais">
               <div v-for="(ship, idx) in shipRouteResult.shipDataList" :key="`trace${idx}`">
-                <GmapPolyline stroke-color="blue" :path="displaySelectedRoute(ship, idx)" />
+                <GmapPolyline stroke-color="blue" :path="ship.route" />
                 <GmapMarker v-for="(pos, markerIdx) in displaySelectedRoute(ship, idx)" :key="`marker${markerIdx}`"
                   :position="pos" :clickable="true" :title="getShipTitle(ship, markerIdx)"
                   :icon="getShipIcon(markerIdx)" @click="selectedMarker = idx" />
@@ -526,19 +526,17 @@ export default Vue.extend({
         ),
           strokeWeight: 1,
           strokeColor: '#ffffff',
-          scale: 0.03,
+          scale: 0.01,
         };
     },
     displaySelectedRoute(ship: ShipData, idx: number): Array<Position> {
-      return ship.route;
-      /*
       if (idx === this.selectedMarker) {
         return ship.route;
       } else {
         let posArray = new Array<Position>();
         posArray.push(ship.route[0]);
         return posArray;
-      }*/
+      }
     }
   },
 });
