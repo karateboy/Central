@@ -3,37 +3,82 @@
     <b-card>
       <b-form @submit.prevent>
         <b-form-group label="測點" label-for="monitor" label-cols-md="3">
-          <v-select id="monitor" v-model="form.monitor" label="desc" :reduce="mt => mt._id" :options="monitorOfNoEPA" />
+          <v-select
+            id="monitor"
+            v-model="form.monitor"
+            label="desc"
+            :reduce="mt => mt._id"
+            :options="monitorOfNoEPA"
+          />
         </b-form-group>
         <b-form-group label="資料種類" label-for="dataType" label-cols-md="3">
-          <v-select id="dataType" v-model="form.dataType" label="txt" :reduce="dt => dt.id" :options="dataTypes" />
+          <v-select
+            id="dataType"
+            v-model="form.dataType"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="dataTypes"
+          />
         </b-form-group>
         <b-form-group label="資料區間" label-for="dataRange" label-cols-md="3">
-          <date-picker id="dataRange" v-model="form.range" :range="true" type="datetime" format="YYYY-MM-DD HH:mm"
-            value-type="timestamp" :show-second="false" />
+          <date-picker
+            id="dataRange"
+            v-model="form.range"
+            :range="true"
+            type="datetime"
+            format="YYYY-MM-DD HH:mm"
+            value-type="timestamp"
+            :show-second="false"
+          />
         </b-form-group>
-        <b-form-group label="測項濃度" label-for="monitorType" label-cols-md="3">
+        <b-form-group
+          label="測項濃度"
+          label-for="monitorType"
+          label-cols-md="3"
+        >
           <b-row>
             <b-col>
-              <v-select id="monitorType" v-model="form.monitorType" label="desp" :reduce="mt => mt._id"
-                :options="activatedMonitorTypes" />
+              <v-select
+                id="monitorType"
+                v-model="form.monitorType"
+                label="desp"
+                :reduce="mt => mt._id"
+                :options="activatedMonitorTypes"
+              />
             </b-col>
             <b-col class="align-middle">
-              <b-form-checkbox v-model="form.ais">顯示AIS軌跡 (點擊船隻圖示顯示個別軌跡)</b-form-checkbox>
+              <b-form-checkbox v-model="form.ais"
+                >顯示AIS軌跡 (點擊船隻圖示顯示個別軌跡)</b-form-checkbox
+              >
             </b-col>
           </b-row>
         </b-form-group>
         <b-form-group label="狀態" label-for="statusFilter" label-cols-md="3">
-          <v-select id="statusFilter" v-model="form.statusFilter" label="txt" :reduce="dt => dt.id"
-            :options="statusFilters" />
+          <v-select
+            id="statusFilter"
+            v-model="form.statusFilter"
+            label="txt"
+            :reduce="dt => dt.id"
+            :options="statusFilters"
+          />
         </b-form-group>
         <b-row>
           <b-col offset-md="3">
-            <b-button v-ripple.400="'rgba(255, 255, 255, 0.15)'" type="submit" variant="primary" class="mr-1"
-              @click="query">
+            <b-button
+              v-ripple.400="'rgba(255, 255, 255, 0.15)'"
+              type="submit"
+              variant="primary"
+              class="mr-1"
+              @click="query"
+            >
               查詢
             </b-button>
-            <b-button v-ripple.400="'rgba(186, 191, 199, 0.15)'" class="mr-1" type="reset" variant="outline-secondary">
+            <b-button
+              v-ripple.400="'rgba(186, 191, 199, 0.15)'"
+              class="mr-1"
+              type="reset"
+              variant="outline-secondary"
+            >
               取消
             </b-button>
           </b-col>
@@ -41,17 +86,29 @@
       </b-form>
     </b-card>
 
-    <b-card v-show="displayRoute" border-variant="primary" :header="shipRouteTitle" header-tag="h2">
+    <b-card
+      v-show="displayRoute"
+      border-variant="primary"
+      :header="shipRouteTitle"
+      header-tag="h2"
+    >
       <b-row>
         <b-col cols="2">
-          <b-form-checkbox v-model="form.shipRoute">顯示監測船軌跡</b-form-checkbox>
+          <b-form-checkbox v-model="form.shipRoute"
+            >顯示監測船軌跡</b-form-checkbox
+          >
         </b-col>
         <b-col>
           <b-form-group label="濃度圖類型:" label-cols-md="2">
             <b-row>
               <b-col cols="3">
-                <b-form-radio-group id="graph-type" v-model="form.graphType" :options="graphOptions" stacked
-                  name="graph-type"></b-form-radio-group>
+                <b-form-radio-group
+                  id="graph-type"
+                  v-model="form.graphType"
+                  :options="graphOptions"
+                  stacked
+                  name="graph-type"
+                ></b-form-radio-group>
               </b-col>
               <b-col v-if="form.graphType === 'heatmap'">
                 <b-form-checkbox v-model="heatmapOption.dissipating">
@@ -63,8 +120,14 @@
         </b-col>
       </b-row>
       <div class="map_container">
-        <GmapMap ref="mapRef" :center="mapCenter" :zoom="13" map-type-id="roadmap" class="map_canvas"
-          :options="mapOption">
+        <GmapMap
+          ref="mapRef"
+          :center="mapCenter"
+          :zoom="13"
+          map-type-id="roadmap"
+          class="map_canvas"
+          :options="mapOption"
+        >
           <div id="mapLegend" class="mb-2 rounded bg-white border">
             <b-table-simple v-show="form.graphType === 'bar'" small>
               <b-thead>
@@ -74,7 +137,9 @@
               </b-thead>
               <b-tbody>
                 <b-tr>
-                  <b-td :style="{ color: 'red' }" class="bg-light"><strong>___</strong></b-td>
+                  <b-td :style="{ color: 'red' }" class="bg-light"
+                    ><strong>___</strong></b-td
+                  >
                   <b-td>監測(海巡)軌跡</b-td>
                 </b-tr>
                 <b-tr>
@@ -105,33 +170,64 @@
             </b-table-simple>
           </div>
           <div v-if="mapLoaded">
-            <GmapMarker v-if="mapLoaded" key="master" :position="mapCenter" :clickable="true" :icon="masterShipIcon" />
-            <GmapPolyline v-if="form.shipRoute" stroke-color="red" :path="masterRoute" />
-            <div v-if="
-              mapLoaded &&
-              form.monitorType &&
-              shipRouteResult.monitorRecords.length &&
-              form.graphType === 'bar'
-            ">
-              <GmapMarker v-for="(record, idx) in getValidRecords(
-                shipRouteResult.monitorRecords,
-              )" :key="`mtValue_${idx}`" :position="getRecordPos(record)" :icon="getRecordIcon(record)"
-                :title="getRecordExplain(record)" />
+            <GmapMarker
+              v-if="mapLoaded"
+              key="master"
+              :position="mapCenter"
+              :clickable="true"
+              :icon="masterShipIcon"
+            />
+            <GmapPolyline
+              v-if="form.shipRoute"
+              stroke-color="red"
+              :path="masterRoute"
+            />
+            <div
+              v-if="
+                mapLoaded &&
+                form.monitorType &&
+                shipRouteResult.monitorRecords.length &&
+                form.graphType === 'bar'
+              "
+            >
+              <GmapMarker
+                v-for="(record, idx) in getValidRecords(
+                  shipRouteResult.monitorRecords,
+                )"
+                :key="`mtValue_${idx}`"
+                :position="getRecordPos(record)"
+                :icon="getRecordIcon(record)"
+                :title="getRecordExplain(record)"
+              />
             </div>
-            <div v-if="
-              mapLoaded &&
-              form.monitorType &&
-              shipRouteResult.monitorRecords.length &&
-              form.graphType === 'heatmap'
-            ">
-              <gmap-heatmap-layer :data="heatmapMarker" :options="heatmapOption" />
+            <div
+              v-if="
+                mapLoaded &&
+                form.monitorType &&
+                shipRouteResult.monitorRecords.length &&
+                form.graphType === 'heatmap'
+              "
+            >
+              <gmap-heatmap-layer
+                :data="heatmapMarker"
+                :options="heatmapOption"
+              />
             </div>
             <div v-if="form.ais">
-              <div v-for="(ship, idx) in shipRouteResult.shipDataList" :key="`trace${idx}`">
+              <div
+                v-for="(ship, idx) in shipRouteResult.shipDataList"
+                :key="`trace${idx}`"
+              >
                 <GmapPolyline stroke-color="blue" :path="ship.route" />
-                <GmapMarker v-for="(pos, markerIdx) in displaySelectedRoute(ship, idx)" :key="`marker${markerIdx}`"
-                  :position="pos" :clickable="true" :title="getShipTitle(ship, markerIdx)"
-                  :icon="getShipIcon(markerIdx)" @click="selectedMarker = idx" />
+                <GmapMarker
+                  v-for="(pos, markerIdx) in displaySelectedRoute(ship, idx)"
+                  :key="`marker${markerIdx}`"
+                  :position="pos"
+                  :clickable="true"
+                  :title="getShipTitle(ship, markerIdx)"
+                  :icon="getShipIcon(markerIdx)"
+                  @click="selectedMarker = idx"
+                />
               </div>
             </div>
           </div>
@@ -470,8 +566,9 @@ export default Vue.extend({
       let mtCase = this.mtMap.get(this.form.monitorType) as MonitorType;
       const levels = mtCase.levels ?? [1, 2, 3, 4, 5];
       if (idx == 0)
-        return `${mtCase.desp}濃度 < ${levels[idx].toFixed(mtCase.prec)}${mtCase.unit
-          }`;
+        return `${mtCase.desp}濃度 < ${levels[idx].toFixed(mtCase.prec)}${
+          mtCase.unit
+        }`;
 
       if (idx >= 1 && idx <= levels.length - 1)
         return `${mtCase.desp}濃度${levels[idx - 1].toFixed(
@@ -521,9 +618,9 @@ export default Vue.extend({
           fillColor: '#ffffff',
           fillOpacity: 1,
           anchor: new google.maps.Point(
-          faCircle.icon[0] / 2, // width
-          faCircle.icon[1] / 2, // height
-        ),
+            faCircle.icon[0] / 2, // width
+            faCircle.icon[1] / 2, // height
+          ),
           strokeWeight: 1,
           strokeColor: '#ffffff',
           scale: 0.01,
@@ -537,7 +634,7 @@ export default Vue.extend({
         posArray.push(ship.route[0]);
         return posArray;
       }
-    }
+    },
   },
 });
 </script>
