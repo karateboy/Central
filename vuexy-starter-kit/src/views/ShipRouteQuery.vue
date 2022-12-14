@@ -95,7 +95,7 @@
       <b-row>
         <b-col cols="2">
           <b-form-checkbox v-model="form.shipRoute"
-            >顯示監測船軌跡</b-form-checkbox
+            >顯示船舶軌跡</b-form-checkbox
           >
         </b-col>
         <b-col>
@@ -218,7 +218,11 @@
                 v-for="(ship, idx) in shipRouteResult.shipDataList"
                 :key="`trace${idx}`"
               >
-                <GmapPolyline stroke-color="blue" :path="ship.route" />
+                <GmapPolyline
+                  v-if="form.shipRoute"
+                  stroke-color="blue"
+                  :path="ship.route"
+                />
                 <GmapMarker
                   v-for="(pos, markerIdx) in displaySelectedRoute(ship, idx)"
                   :key="`marker${markerIdx}`"
