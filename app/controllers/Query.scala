@@ -191,7 +191,7 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
           for (chart <- compareChartHelper(monitors, monitorTypes, tabType, start, end)(statusFilter)) yield
             Results.Ok(Json.toJson(chart))
         }
-      retFF.flatMap(x=>x)
+      retFF.flatMap(x => x)
   }
 
 
@@ -451,7 +451,7 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
             for {
               period_start <- getPeriods(start, end, period)
               rawRecords = periodSlice(period_start, period_start + period) if rawRecords.length > 0
-              records = rawRecords.filter( r => MonitorStatusFilter.isMatched(statusFilter, r.status))
+              records = rawRecords.filter(r => MonitorStatusFilter.isMatched(statusFilter, r.status))
             } yield {
               if (mt == MonitorType.WIN_DIRECTION) {
                 val windDir = records
@@ -549,8 +549,8 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
           ScatterSeries(name = s"${monitorOp.map(m).desc}", data = data)
         }
       })
-      for(ret<-Future.sequence(seqFuture)) yield {
-        val combinedData = ret.flatMap(series=>series.data)
+      for (ret <- Future.sequence(seqFuture)) yield {
+        val combinedData = ret.flatMap(series => series.data)
         ret :+ ScatterSeries(name = monitors.map(m => s"${monitorOp.map(m).desc}").mkString("+"), data = combinedData)
       }
     }
@@ -684,25 +684,63 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
   }
 
 
-  def alarmReport(level: Int, startNum: Long, endNum: Long) = Security.Authenticated.async {
-    val (start, end) = (new DateTime(startNum), new DateTime(endNum))
-    for (report <- alarmOp.getAlarmsFuture(level, start, end + 1.day)) yield {
-      Ok(Json.toJson(report))
+  def alarmReport(level: Int, startNum: Long, endNum: Long): Action[AnyContent] = Security.Authenticated.async {
+    implicit request =>
+      val userInfo = request.user
+      val ret =
+        for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
+          val group = groupOpt.get
+          val start = new DateTime(startNum)
+          var end = new DateTime(endNum)
+
+          if (end >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+            end = DateTime.now().minusHours(group.delayHour.getOrElse(0))
+
+          for (report <- alarmOp.getAlarmsFuture(level, start, end)) yield {
+            Ok(Json.toJson(report))
+          }
+        }
+      ret.flatMap(x => x)
+  }
+
+
+  def monitorAlarmReport(monitorStr: String, level: Int, startNum: Long, endNum: Long): Action[AnyContent] =
+    Security.Authenticated.async {
+      implicit request =>
+        val userInfo = request.user
+        val monitors = monitorStr.split(":").toList
+        val ret =
+          for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
+            val group = groupOpt.get
+            val start = new DateTime(startNum)
+            var end = new DateTime(endNum)
+
+            if (end >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+              end = DateTime.now().minusHours(group.delayHour.getOrElse(0))
+
+            for (report <- alarmOp.getMonitorAlarmsFuture(monitors, start.toDate, end.toDate)) yield
+              Ok(Json.toJson(report.filter(ar=>ar.level >= level)))
+          }
+        ret.flatMap(x => x)
     }
-  }
-
-
-  def monitorAlarmReport(monitorStr: String, level: Int, startNum: Long, endNum: Long) = Security.Authenticated.async {
-    val monitors = monitorStr.split(":").toList
-    val (start, end) = (new DateTime(startNum), new DateTime(endNum))
-    for (report <- alarmOp.getMonitorAlarmsFuture(monitors, start.toDate, end.plusDays(1).toDate)) yield
-      Ok(Json.toJson(report))
-  }
 
   def getAlarms(src: String, level: Int, startNum: Long, endNum: Long) = Security.Authenticated.async {
-    val (start, end) = (new DateTime(startNum), new DateTime(endNum))
-    for (report <- alarmOp.getAlarmsFuture(src, level, start, end + 1.day)) yield
-      Ok(Json.toJson(report))
+    implicit request =>
+      val userInfo = request.user
+      val ret =
+        for (groupOpt <- groupDB.getGroupByIdAsync(userInfo.group)) yield {
+          val group = groupOpt.get
+          val start = new DateTime(startNum)
+          var end = new DateTime(endNum)
+
+          if (end >= DateTime.now().minusHours(group.delayHour.getOrElse(0)))
+            end = DateTime.now().minusHours(group.delayHour.getOrElse(0))
+
+          for (report <- alarmOp.getAlarmsFuture(src, level, start, end)) yield {
+            Ok(Json.toJson(report))
+          }
+        }
+      ret.flatMap(x => x)
   }
 
   def instrumentStatusReport(id: String, startNum: Long, endNum: Long) =
@@ -797,8 +835,6 @@ class Query @Inject()(recordOp: RecordDB, monitorTypeOp: MonitorTypeDB, monitorO
     }
 
   implicit val write = Json.writes[InstrumentReport]
-
-  import Alarm._
 
   def recordList(mtStr: String, startLong: Long, endLong: Long) = Security.Authenticated {
     val monitorType = (mtStr)
