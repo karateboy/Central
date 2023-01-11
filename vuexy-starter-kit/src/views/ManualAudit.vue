@@ -326,7 +326,7 @@ export default Vue.extend({
 
       return ret;
     },
-    audit() {
+    async audit() {
       // case class ManualAuditParam(reason: String, updateList: Seq[UpdateRecordParam])
       // case class UpdateRecordParam(time: Long, mt:String, status: String)
       const updateList = new Array<any>();
@@ -335,7 +335,7 @@ export default Vue.extend({
           for (let mtIdx = 0; mtIdx < this.form.monitorTypes.length; mtIdx++) {
             for (let mIdx = 0; mIdx < this.form.monitors.length; mIdx++) {
               const cellData =
-                item.cellData[mIdx * this.form.monitors.length + mtIdx];
+                item.cellData[mIdx * this.form.monitorTypes.length + mtIdx];
               if (cellData.v !== '-') {
                 const status =
                   this.form2.statusCode + cellData.status.substr(1);
@@ -350,17 +350,20 @@ export default Vue.extend({
           }
         }
       }
+
       const param = {
         reason: this.form2.reason,
         updateList,
       };
-      axios.put(`/Record/${this.form.dataType}`, param).then(res => {
-        const ret = res.data;
-        if (ret.ok) {
-          this.$bvModal.msgBoxOk('成功');
-          this.query();
-        }
-      });
+      this.setLoading({ loading: true });
+      let res = await axios.put(`/Record/${this.form.dataType}`, param);
+      const ret = res.data;
+      this.setLoading({ loading: false });
+
+      if (ret.ok) {
+        this.$bvModal.msgBoxOk('成功');
+        await this.query();
+      }
     },
     canInclude(item: any) {
       for (const cellData of item.cellData) {
